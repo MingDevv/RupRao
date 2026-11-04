@@ -12,3 +12,4 @@ data/
 *.faiss
 *.webp
 
+run_tunnel.sh
