@@ -243,3 +243,76 @@ def update_report_status(conn, report_id: int, status: str, hide_photo: bool = F
     return True
 
 
+def get_all_photos(conn, limit: int = 50, offset: int = 0, album: str = None, search: str = None):
+    """ดึงรายการรูปภาพทั้งหมดสำหรับหน้าแอดมิน พร้อมจำนวนใบหน้าที่พบในแต่ละรูป"""
+    cur = conn.cursor()
+    params = []
+    where_clauses = []
+    if album:
+        where_clauses.append("p.event_name = ?")
+        params.append(album)
+    if search:
+        where_clauses.append("(p.rel_path LIKE ? OR p.event_name LIKE ?)")
+        params.extend([f"%{search}%", f"%{search}%"])
+
+    where_sql = f"WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
+
+    sql = f"""
+        SELECT p.*, count(f.id) as face_count
+        FROM photos p
+        LEFT JOIN faces f ON p.id = f.photo_id
+        {where_sql}
+        GROUP BY p.id
+        ORDER BY p.id DESC
+        LIMIT ? OFFSET ?
+    """
+    params.extend([limit, offset])
+    cur.execute(sql, params)
+    return [dict(r) for r in cur.fetchall()]
+
+
+def get_total_photos_count(conn, album: str = None, search: str = None):
+    """นับจำนวนรูปภาพทั้งหมดตาม filter"""
+    cur = conn.cursor()
+    params = []
+    where_clauses = []
+    if album:
+        where_clauses.append("event_name = ?")
+        params.append(album)
+    if search:
+        where_clauses.append("(rel_path LIKE ? OR event_name LIKE ?)")
+        params.extend([f"%{search}%", f"%{search}%"])
+
+    where_sql = f"WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
+    cur.execute(f"SELECT count(*) FROM photos {where_sql}", params)
+    return cur.fetchone()[0]
+
+
+def get_albums_summary(conn):
+    """ดึงรายชื่ออัลบั้ม/งานทั้งหมดพร้อมจำนวนรูปในแต่ละงาน"""
+    cur = conn.cursor()
+    cur.execute("""
+        SELECT event_name, count(*) as photo_count
+        FROM photos
+        GROUP BY event_name
+        ORDER BY photo_count DESC
+    """)
+    return [dict(r) for r in cur.fetchall()]
+
+
+def get_photo_faiss_ids(conn, photo_id: int):
+    """ดึง faiss_id ทั้งหมดของรูปนี้"""
+    cur = conn.cursor()
+    cur.execute("SELECT faiss_id FROM faces WHERE photo_id = ?", (int(photo_id),))
+    return [r[0] for r in cur.fetchall()]
+
+
+def delete_photo_by_id(conn, photo_id: int):
+    """ลบรูปภาพจาก SQLite (cascade delete faces และ reports อัตโนมัติ)"""
+    cur = conn.cursor()
+    cur.execute("DELETE FROM photos WHERE id = ?", (int(photo_id),))
+    conn.commit()
+    return cur.rowcount > 0
+
+
+

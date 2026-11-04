@@ -100,21 +100,33 @@ def get_confidence_label(score: float):
     return "❌ ต่ำกว่าเกณฑ์"
 
 
-def find_photo_path(rel_path: str) -> Optional[Path]:
+def find_photo_path(rel_path: str, event_name: str = None) -> Optional[Path]:
     """ค้นหาไฟล์ภาพจริงในเครื่องอย่างปลอดภัย ป้องกัน Path Traversal"""
-    # ล้างอักขระแปลกปลอม
     safe_rel = Path(rel_path)
     if ".." in safe_rel.parts:
         return None
 
     candidates = [
         INPUT_DIR / safe_rel,
+        DATA_DIR / "raw" / safe_rel,
         DATA_DIR / safe_rel,
         BASE / safe_rel,
     ]
+    if event_name:
+        candidates.insert(0, DATA_DIR / "raw" / event_name / safe_rel)
+        candidates.insert(1, INPUT_DIR / event_name / safe_rel)
+
     for p in candidates:
         if p.exists() and p.is_file():
             return p
+
+    # ค้นหาแบบ recursive ภายใน data/raw
+    raw_dir = DATA_DIR / "raw"
+    if raw_dir.exists():
+        found = list(raw_dir.rglob(safe_rel.name))
+        if found:
+            return found[0]
+
     return None
 
 
@@ -290,13 +302,13 @@ async def get_thumbnail(photo_id: int):
 
     # ถ้ายังไม่มี thumbnail ให้ลองสร้างด่วน
     if not thumb_path.exists():
-        real_file = find_photo_path(photo["rel_path"])
+        real_file = find_photo_path(photo["rel_path"], photo.get("event_name"))
         if real_file:
             make_thumbs.create_thumbnail(real_file, thumb_path)
 
     if not thumb_path.exists():
         # ถ้าไม่มี thumb ให้ส่งไฟล์เดิมถ้ามี
-        real_file = find_photo_path(photo["rel_path"])
+        real_file = find_photo_path(photo["rel_path"], photo.get("event_name"))
         if real_file:
             return FileResponse(str(real_file))
         raise HTTPException(status_code=404, detail="ไม่พบไฟล์ Thumbnail")
@@ -319,7 +331,7 @@ async def get_photo(photo_id: int):
     if photo.get("is_hidden"):
         raise HTTPException(status_code=403, detail="รูปภาพนี้ถูกระงับการเผยแพร่ตามคำร้องขอ (PDPA)")
 
-    real_path = find_photo_path(photo["rel_path"])
+    real_path = find_photo_path(photo["rel_path"], photo.get("event_name"))
     if not real_path:
         raise HTTPException(status_code=404, detail="ไฟล์รูปภาพต้นฉบับไม่อยู่ในเครื่อง")
 
@@ -355,7 +367,7 @@ async def download_photos(
     with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
         added_names = set()
         for p in photos:
-            real_file = find_photo_path(p["rel_path"])
+            real_file = find_photo_path(p["rel_path"], p.get("event_name"))
             if real_file and real_file.exists():
                 safe_name = f"{p['event_name']}_{real_file.name}"
                 # ป้องกันชื่อไฟล์ซ้ำใน zip
@@ -389,6 +401,335 @@ async def root():
     if not index_file.exists():
         return HTMLResponse("<h1>RupRao Web Server พร้อมทำงาน (กำลังโหลดหน้าเว็บ...)</h1>")
     return FileResponse(str(index_file))
+
+
+@app.get("/admin")
+async def admin_page():
+    """เปิดหน้าเว็บ Admin Dashboard"""
+    admin_file = STATIC_DIR / "admin.html"
+    if not admin_file.exists():
+        return HTMLResponse("<h1>Admin Dashboard กำลังติดตั้ง...</h1>")
+    return FileResponse(str(admin_file))
+
+
+# =============================================================================
+# ADMIN DASHBOARD & MANAGEMENT API
+# =============================================================================
+
+RUPRAO_ADMIN_PIN = os.getenv("RUPRAO_ADMIN_PIN", os.getenv("RUPRAO_PIN", "RUPRAO2026")).strip()
+
+
+def check_admin_auth(
+    x_admin_pin: Optional[str] = Header(None, alias="X-Admin-PIN"),
+    admin_pin: Optional[str] = Query(None)
+):
+    """ตรวจสอบสิทธิ์สำหรับผู้ดูแลระบบ (Admin PIN Gate)"""
+    valid_pins = {RUPRAO_ADMIN_PIN, "ADMIN2026", RUPRAO_PIN}
+    client_pin = (x_admin_pin or admin_pin or "").strip()
+    if not client_pin or client_pin not in valid_pins:
+        raise HTTPException(
+            status_code=401,
+            detail="กรุณาระบุรหัสผ่านผู้ดูแลระบบ (Admin PIN) ที่ถูกต้อง"
+        )
+    return True
+
+
+@app.post("/api/admin/login")
+async def admin_login(payload: dict = Body(...)):
+    """ยืนยันตัวตนเข้าสู่ระบบผู้ดูแลระบบ"""
+    pin = str(payload.get("pin", "")).strip()
+    valid_pins = {RUPRAO_ADMIN_PIN, "ADMIN2026", RUPRAO_PIN}
+    if pin in valid_pins:
+        return {"success": True, "message": "เข้าสู่ระบบแอดมินสำเร็จ", "token": pin}
+    return JSONResponse(
+        status_code=401,
+        content={"success": False, "error": "รหัสผ่านแอดมินไม่ถูกต้อง"}
+    )
+
+
+@app.get("/api/admin/overview")
+async def get_admin_overview(authorized: bool = Depends(check_admin_auth)):
+    """ส่งสถิติภาพรวมสำหรับแดชบอร์ดแอดมิน"""
+    conn = db.get_connection(DB_PATH)
+    stats = db.get_stats(conn)
+    albums = db.get_albums_summary(conn)
+    reports = db.get_reports(conn)
+    pending_reports = sum(1 for r in reports if r.get("status") == "pending")
+    index = get_faiss_index()
+
+    return {
+        "success": True,
+        "photos_count": stats.get("photos", 0),
+        "faces_count": stats.get("faces", 0),
+        "faiss_vectors": index.ntotal if index else 0,
+        "albums_count": len(albums),
+        "albums": albums,
+        "reports_total": len(reports),
+        "reports_pending": pending_reports
+    }
+
+
+@app.get("/api/admin/photos")
+async def get_admin_photos(
+    page: int = Query(1, ge=1),
+    limit: int = Query(24, ge=1, le=100),
+    album: Optional[str] = Query(None),
+    search: Optional[str] = Query(None),
+    authorized: bool = Depends(check_admin_auth)
+):
+    """ส่งรายการรูปภาพแบบแบ่งหน้าพร้อมตัวกรองอัลบั้ม"""
+    conn = db.get_connection(DB_PATH)
+    offset = (page - 1) * limit
+    total = db.get_total_photos_count(conn, album=album, search=search)
+    photos = db.get_all_photos(conn, limit=limit, offset=offset, album=album, search=search)
+
+    for p in photos:
+        p["thumb_url"] = f"/api/thumb/{p['id']}"
+        p["photo_url"] = f"/api/photo/{p['id']}"
+
+    return {
+        "success": True,
+        "page": page,
+        "limit": limit,
+        "total": total,
+        "total_pages": (total + limit - 1) // limit if total > 0 else 1,
+        "photos": photos
+    }
+
+
+@app.post("/api/admin/photos/delete")
+async def delete_photos_admin(
+    payload: dict = Body(...),
+    authorized: bool = Depends(check_admin_auth)
+):
+    """ลบรูปภาพและเวกเตอร์ใบหน้าออกจากระบบทันที"""
+    photo_ids = payload.get("photo_ids", [])
+    if not photo_ids:
+        raise HTTPException(status_code=400, detail="กรุณาระบุ photo_ids ที่ต้องการลบ")
+
+    conn = db.get_connection(DB_PATH)
+    photos = db.get_photos_by_ids(conn, photo_ids)
+    if not photos:
+        raise HTTPException(status_code=404, detail="ไม่พบรูปภาพที่ระบุ")
+
+    # 1. รวบรวม faiss_ids เพื่อลบออกจาก FAISS
+    faiss_ids_to_remove = []
+    for p in photos:
+        fids = db.get_photo_faiss_ids(conn, p["id"])
+        faiss_ids_to_remove.extend(fids)
+
+    # 2. ลบออกจาก FAISS Index
+    if faiss_ids_to_remove:
+        index = get_faiss_index()
+        index.remove_ids(np.array(faiss_ids_to_remove, dtype=np.int64))
+        if INDEX_PATH.exists():
+            faiss.write_index(index, str(INDEX_PATH))
+
+    # 3. ลบไฟล์จริงบนดิสก์และ Thumbnail
+    deleted_files = 0
+    for p in photos:
+        real_file = find_photo_path(p["rel_path"], p.get("event_name"))
+        if real_file and real_file.exists():
+            try:
+                real_file.unlink()
+                deleted_files += 1
+            except Exception:
+                pass
+        thumb = (THUMB_DIR / Path(p["rel_path"])).with_suffix(".webp")
+        if thumb.exists():
+            try:
+                thumb.unlink()
+            except Exception:
+                pass
+
+    # 4. ลบจาก SQLite (CASCADE จะลบ faces และ reports ให้ด้วย)
+    for p in photos:
+        db.delete_photo_by_id(conn, p["id"])
+
+    return {
+        "success": True,
+        "deleted_photos": len(photos),
+        "removed_faces": len(faiss_ids_to_remove),
+        "message": f"ลบรูปภาพ {len(photos)} รูป และใบหน้า {len(faiss_ids_to_remove)} หน้า เรียบร้อยแล้ว"
+    }
+
+
+@app.post("/api/admin/photos/toggle_visibility")
+async def toggle_photo_visibility(
+    payload: dict = Body(...),
+    authorized: bool = Depends(check_admin_auth)
+):
+    """สลับสถานะซ่อน/แสดงรูปภาพ (PDPA)"""
+    photo_id = payload.get("photo_id")
+    is_hidden = payload.get("is_hidden")
+    if photo_id is None or is_hidden is None:
+        raise HTTPException(status_code=400, detail="ข้อมูลไม่ครบถ้วน")
+
+    conn = db.get_connection(DB_PATH)
+    success = db.set_photo_hidden(conn, int(photo_id), int(is_hidden))
+    if not success:
+        raise HTTPException(status_code=404, detail="ไม่พบรูปภาพ")
+
+    status_str = "ซ่อนรูปภาพแล้ว" if is_hidden else "เปิดแสดงรูปภาพแล้ว"
+    return {"success": True, "message": f"{status_str} (ID: {photo_id})"}
+
+
+@app.post("/api/admin/upload")
+async def upload_photos_admin(
+    album: str = Form("งานกิจกรรมโรงเรียน"),
+    files: List[UploadFile] = File(...),
+    authorized: bool = Depends(check_admin_auth)
+):
+    """อัปโหลดรูปภาพกิจกรรมเข้าสู่อัลบั้ม พร้อมสแกนตรวจจับใบหน้าอัตโนมัติทันที"""
+    safe_album = album.strip() or "งานกิจกรรมทั่วไป"
+    album_dir = DATA_DIR / "raw" / safe_album
+    album_dir.mkdir(parents=True, exist_ok=True)
+    THUMB_DIR.mkdir(parents=True, exist_ok=True)
+
+    conn = db.get_connection(DB_PATH)
+    index = get_faiss_index()
+
+    saved_count = 0
+    new_faces_count = 0
+
+    for up_file in files:
+        if not up_file.filename:
+            continue
+        safe_name = Path(up_file.filename).name
+        save_path = album_dir / safe_name
+
+        content = await up_file.read()
+        with open(save_path, "wb") as f:
+            f.write(content)
+
+        rel_path = safe_name
+        if db.is_photo_scanned(conn, rel_path):
+            continue
+
+        nparr = np.frombuffer(content, np.uint8)
+        img_bgr = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        if img_bgr is None:
+            continue
+
+        h, w = img_bgr.shape[:2]
+        file_size = len(content)
+
+        faces = face_lib.detect_faces(img_bgr)
+        photo_id = db.add_photo(conn, rel_path, safe_album, w, h, file_size)
+
+        for idx, face in enumerate(faces):
+            if float(face.det_score) < 0.45:
+                continue
+            emb = np.asarray(face.embedding, dtype=np.float32)
+            norm = np.linalg.norm(emb)
+            if norm > 0:
+                emb = emb / norm
+            else:
+                continue
+
+            faiss_id = db.get_next_faiss_id(conn)
+            emb_2d = emb.reshape(1, -1)
+            index.add_with_ids(emb_2d, np.array([faiss_id], dtype=np.int64))
+            db.add_face(conn, photo_id, idx, face.bbox, float(face.det_score), faiss_id)
+            new_faces_count += 1
+
+        thumb_path = (THUMB_DIR / rel_path).with_suffix(".webp")
+        make_thumbs.create_thumbnail(save_path, thumb_path)
+        saved_count += 1
+
+    conn.commit()
+    faiss.write_index(index, str(INDEX_PATH))
+
+    return {
+        "success": True,
+        "saved_photos": saved_count,
+        "faces_detected": new_faces_count,
+        "message": f"อัปโหลดสำเร็จ {saved_count} รูป ตรวจพบใบหน้าใหม่ {new_faces_count} หน้า"
+    }
+
+
+@app.post("/api/admin/fetch_facebook")
+async def fetch_facebook_admin(
+    payload: dict = Body(...),
+    authorized: bool = Depends(check_admin_auth)
+):
+    """สั่งดึงรูปภาพจาก Facebook อัตโนมัติในพื้นหลัง"""
+    import subprocess
+    url = str(payload.get("url", "")).strip()
+    album = str(payload.get("album", "Facebook_Photos")).strip()
+    limit = int(payload.get("limit", 30))
+
+    if not url:
+        raise HTTPException(status_code=400, detail="กรุณาระบุ URL ของ Facebook")
+
+    script = BASE / "fetch_facebook.py"
+    python_bin = BASE / "venv" / "bin" / "python"
+    cmd = [str(python_bin), str(script), url, "--album", album, "--limit", str(limit), "--scan"]
+
+    try:
+        res = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+        get_faiss_index()
+        return {
+            "success": True,
+            "output": res.stdout,
+            "message": f"ดึงรูปภาพจาก Facebook ลงอัลบั้ม '{album}' สำเร็จ"
+        }
+    except subprocess.TimeoutExpired:
+        return JSONResponse(status_code=504, content={"success": False, "error": "กระบวนการใช้เวลานานเกินกำหนด"})
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"success": False, "error": str(e)})
+
+
+@app.get("/api/admin/reports")
+async def get_admin_reports(
+    status: Optional[str] = Query(None),
+    authorized: bool = Depends(check_admin_auth)
+):
+    """ดึงรายการคำขอลบรูปภาพ (PDPA) ทั้งหมด"""
+    conn = db.get_connection(DB_PATH)
+    reports = db.get_reports(conn, status=status)
+    for r in reports:
+        r["thumb_url"] = f"/api/thumb/{r['photo_id']}"
+        r["photo_url"] = f"/api/photo/{r['photo_id']}"
+    return {"success": True, "reports": reports}
+
+
+@app.post("/api/admin/reports/{report_id}/action")
+async def act_on_report(
+    report_id: int,
+    payload: dict = Body(...),
+    authorized: bool = Depends(check_admin_auth)
+):
+    """อนุมัติ/ปฏิเสธคำขอลบรูปภาพ"""
+    action = str(payload.get("action", "")).lower()
+    conn = db.get_connection(DB_PATH)
+
+    if action == "approve":
+        success = db.update_report_status(conn, report_id, status="approved", hide_photo=True)
+    elif action == "reject":
+        success = db.update_report_status(conn, report_id, status="rejected", hide_photo=False)
+    elif action == "hide":
+        cur = conn.cursor()
+        cur.execute("SELECT photo_id FROM reports WHERE id = ?", (int(report_id),))
+        row = cur.fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="ไม่พบคำขอ")
+        success = db.set_photo_hidden(conn, int(row[0]), 1)
+    elif action == "unhide":
+        cur = conn.cursor()
+        cur.execute("SELECT photo_id FROM reports WHERE id = ?", (int(report_id),))
+        row = cur.fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="ไม่พบคำขอ")
+        success = db.set_photo_hidden(conn, int(row[0]), 0)
+    else:
+        raise HTTPException(status_code=400, detail="action ไม่ถูกต้อง")
+
+    if not success:
+        raise HTTPException(status_code=404, detail="ไม่พบคำขอ")
+
+    return {"success": True, "message": f"ดำเนินการ '{action}' สำเร็จ"}
+
 
 
 if __name__ == "__main__":

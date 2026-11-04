@@ -1,0 +1,777 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ระบบจัดการหลังบ้าน (Admin) — RupRao โรงเรียนเทศบาล 6 นครเชียงราย</title>
+  
+  <!-- Tailwind CSS & Google Fonts -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Prompt', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              50: '#f0f7ff',
+              100: '#e0effe',
+              200: '#bae0fd',
+              500: '#0284c7',
+              600: '#0369a1',
+              700: '#1d4ed8',
+              800: '#1e40af',
+              900: '#1e3a8a',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    body { font-family: 'Prompt', sans-serif; background-color: #f8fafc; }
+    .glass-card {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(12px);
+      border: 1px solid #e2e8f0;
+      box-shadow: 0 10px 25px -5px rgba(2, 132, 199, 0.05);
+    }
+  </style>
+</head>
+<body class="min-h-screen text-slate-800 flex flex-col">
+
+  <!-- Top Navigation Bar -->
+  <header class="bg-white/90 backdrop-blur-md sticky top-0 z-40 border-b border-slate-200">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-800 to-brand-500 text-white flex items-center justify-center font-bold text-lg shadow-md shadow-brand-500/20">
+          ⚙️
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="text-base sm:text-lg font-bold text-brand-900 tracking-tight">RupRao Admin</h1>
+            <span class="text-[10px] font-semibold bg-brand-100 text-brand-700 px-2 py-0.5 rounded-full border border-brand-200">
+              ผู้ดูแลระบบ
+            </span>
+          </div>
+          <p class="text-[11px] text-slate-500">โรงเรียนเทศบาล 6 นครเชียงราย (CRMS6)</p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2 sm:gap-3">
+        <a href="/" class="px-3.5 py-1.5 text-xs sm:text-sm font-medium text-brand-700 bg-brand-50 hover:bg-brand-100 rounded-xl border border-brand-200 transition flex items-center gap-1.5">
+          <span>🔍</span>
+          <span>ไปหน้าค้นหา</span>
+        </a>
+        <button type="button" onclick="logoutAdmin()" class="px-3 py-1.5 text-xs sm:text-sm font-medium text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition">
+          ออกจากระบบ
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Admin PIN Gate Modal -->
+  <div id="admin-auth-modal" class="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="glass-card bg-white rounded-3xl max-w-sm w-full p-6 sm:p-8 shadow-2xl border border-slate-200 text-center space-y-5">
+      <div class="w-14 h-14 mx-auto rounded-2xl bg-brand-50 text-brand-700 flex items-center justify-center text-2xl font-bold border border-brand-100">
+        🛡️
+      </div>
+      <div>
+        <h3 class="text-lg font-bold text-slate-900">เข้าสู่ระบบผู้ดูแลระบบ</h3>
+        <p class="text-xs text-slate-500 mt-1">กรุณาระบุรหัสผ่านแอดมินเพื่อเข้าถึงแดชบอร์ด</p>
+      </div>
+      <div class="space-y-3">
+        <input type="password" id="admin-pin-input" placeholder="ใส่รหัสแอดมิน..." class="w-full px-4 py-3 text-center tracking-widest text-lg font-mono rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-brand-500">
+        <div id="admin-pin-error" class="hidden text-xs text-rose-600 bg-rose-50 p-2 rounded-lg border border-rose-200">
+          รหัสผ่านไม่ถูกต้อง กรุณาลองใหม่
+        </div>
+        <button type="button" onclick="submitAdminLogin()" class="w-full py-3 bg-gradient-to-r from-brand-700 to-brand-500 hover:opacity-95 text-white font-medium text-sm rounded-xl shadow-md shadow-brand-500/25 transition">
+          เข้าสู่ระบบ
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Container -->
+  <main class="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full space-y-6">
+
+    <!-- KPI Metric Cards -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div class="glass-card rounded-2xl p-5 flex items-center gap-4">
+        <div class="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center text-2xl border border-blue-100">
+          📸
+        </div>
+        <div>
+          <p class="text-xs text-slate-500 font-medium">รูปภาพกิจกรรม</p>
+          <h3 id="stat-photos" class="text-2xl font-bold text-slate-900 mt-0.5">--</h3>
+          <p class="text-[11px] text-blue-600">พร้อมค้นหา</p>
+        </div>
+      </div>
+
+      <div class="glass-card rounded-2xl p-5 flex items-center gap-4">
+        <div class="w-12 h-12 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-2xl border border-indigo-100">
+          👤
+        </div>
+        <div>
+          <p class="text-xs text-slate-500 font-medium">ใบหน้าในระบบ AI</p>
+          <h3 id="stat-faces" class="text-2xl font-bold text-slate-900 mt-0.5">--</h3>
+          <p class="text-[11px] text-indigo-600">FAISS Index</p>
+        </div>
+      </div>
+
+      <div class="glass-card rounded-2xl p-5 flex items-center gap-4">
+        <div class="w-12 h-12 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center text-2xl border border-sky-100">
+          📁
+        </div>
+        <div>
+          <p class="text-xs text-slate-500 font-medium">อัลบั้มกิจกรรม</p>
+          <h3 id="stat-albums" class="text-2xl font-bold text-slate-900 mt-0.5">--</h3>
+          <p class="text-[11px] text-sky-600">แยกตามงาน</p>
+        </div>
+      </div>
+
+      <div class="glass-card rounded-2xl p-5 flex items-center gap-4">
+        <div class="w-12 h-12 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center text-2xl border border-rose-100">
+          🚩
+        </div>
+        <div>
+          <p class="text-xs text-slate-500 font-medium">คำขอลบ (PDPA)</p>
+          <h3 id="stat-reports" class="text-2xl font-bold text-slate-900 mt-0.5">--</h3>
+          <p id="stat-reports-sub" class="text-[11px] text-rose-600 font-medium">0 รอดำเนินการ</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <div class="flex border-b border-slate-200 gap-2">
+      <button type="button" onclick="switchTab('gallery')" id="tab-btn-gallery" class="px-5 py-3 text-sm font-semibold border-b-2 border-brand-700 text-brand-700 transition flex items-center gap-2">
+        <span>🗂️</span>
+        <span>คลังรูปภาพและสแกน</span>
+      </button>
+      <button type="button" onclick="switchTab('upload')" id="tab-btn-upload" class="px-5 py-3 text-sm font-semibold border-b-2 border-transparent text-slate-500 hover:text-slate-800 transition flex items-center gap-2">
+        <span>📥</span>
+        <span>นำเข้ารูปภาพใหม่</span>
+      </button>
+      <button type="button" onclick="switchTab('reports')" id="tab-btn-reports" class="px-5 py-3 text-sm font-semibold border-b-2 border-transparent text-slate-500 hover:text-slate-800 transition flex items-center gap-2">
+        <span>⚖️</span>
+        <span>คำขอลบรูปภาพ (PDPA)</span>
+        <span id="tab-report-badge" class="hidden ml-1 px-1.5 py-0.2 bg-rose-500 text-white text-[10px] rounded-full">0</span>
+      </button>
+    </div>
+
+    <!-- TAB 1: Photo Gallery & Management -->
+    <div id="tab-pane-gallery" class="space-y-4">
+      <!-- Search & Filters -->
+      <div class="glass-card rounded-2xl p-4 flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3">
+        <div class="flex items-center gap-2 flex-1">
+          <input type="text" id="filter-search" oninput="debounceLoadPhotos()" placeholder="พิมพ์ค้นหาชื่อไฟล์..." class="w-full sm:max-w-xs px-3.5 py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-brand-500">
+          <select id="filter-album" onchange="loadPhotos(1)" class="px-3.5 py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white">
+            <option value="">ทั้งหมด (ทุกอัลบั้ม)</option>
+          </select>
+        </div>
+        <div class="flex items-center justify-between sm:justify-end gap-2 text-xs text-slate-500">
+          <span id="gallery-count-text">กำลังโหลดรายการรูปภาพ...</span>
+        </div>
+      </div>
+
+      <!-- Photos Grid -->
+      <div id="photos-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 sm:gap-4">
+        <!-- Rendered dynamically -->
+      </div>
+
+      <!-- Pagination -->
+      <div id="pagination-controls" class="flex justify-center items-center gap-2 pt-4">
+        <!-- Buttons rendered dynamically -->
+      </div>
+    </div>
+
+    <!-- TAB 2: Ingest New Photos -->
+    <div id="tab-pane-upload" class="hidden space-y-6">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        
+        <!-- Option 1: Direct File Upload -->
+        <div class="glass-card rounded-3xl p-6 space-y-4">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-brand-50 text-brand-700 flex items-center justify-center text-xl font-bold border border-brand-100">
+              💻
+            </div>
+            <div>
+              <h3 class="font-bold text-base text-slate-900">อัปโหลดจากคอมพิวเตอร์</h3>
+              <p class="text-xs text-slate-500">ลากไฟล์รูปภาพกิจกรรมมาวางเพื่อสแกนใบหน้า</p>
+            </div>
+          </div>
+
+          <div class="space-y-3">
+            <div>
+              <label class="block text-xs font-medium text-slate-700 mb-1">ชื่องาน / อัลบั้ม</label>
+              <input type="text" id="upload-album-input" placeholder="เช่น กีฬาสี_2569 หรือ วันวิทยาศาสตร์" class="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-brand-500">
+            </div>
+
+            <div id="upload-dropzone" onclick="document.getElementById('upload-files-input').click()" class="border-2 border-dashed border-brand-300 hover:border-brand-500 rounded-2xl p-6 text-center cursor-pointer bg-brand-50/30 transition">
+              <input type="file" id="upload-files-input" multiple accept="image/*" class="hidden" onchange="handleAdminFilesSelected(this.files)">
+              <div class="text-3xl mb-2">📁</div>
+              <p class="text-xs font-semibold text-brand-900">คลิกเลือกรูปภาพ หรือ ลากไฟล์มาวางที่นี่</p>
+              <p class="text-[11px] text-slate-400 mt-1">รองรับ JPG, PNG, WebP (เลือกหลายรูปได้พร้อมกัน)</p>
+              <p id="upload-files-summary" class="text-xs text-brand-700 font-medium mt-2 hidden"></p>
+            </div>
+
+            <button type="button" id="start-upload-btn" onclick="submitDirectUpload()" disabled class="w-full py-2.5 bg-slate-300 text-white font-medium text-xs rounded-xl transition cursor-not-allowed flex items-center justify-center gap-1.5">
+              <span>🚀 เริ่มอัปโหลดและสแกนใบหน้า</span>
+            </button>
+            <div id="upload-progress-text" class="text-xs text-center text-slate-500 hidden"></div>
+          </div>
+        </div>
+
+        <!-- Option 2: Facebook Scraper -->
+        <div class="glass-card rounded-3xl p-6 space-y-4">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center text-xl font-bold border border-blue-100">
+              🌐
+            </div>
+            <div>
+              <h3 class="font-bold text-base text-slate-900">ดูดรูปภาพจาก Facebook</h3>
+              <p class="text-xs text-slate-500">ดึงรูปความละเอียดสูงจากลิงก์โพสต์หรืออัลบั้มเพจ</p>
+            </div>
+          </div>
+
+          <div class="space-y-3">
+            <div>
+              <label class="block text-xs font-medium text-slate-700 mb-1">ลิงก์โพสต์ / อัลบั้ม Facebook</label>
+              <input type="url" id="fb-url-input" placeholder="https://www.facebook.com/... หรือ share link" class="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-brand-500 font-mono">
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-medium text-slate-700 mb-1">ชื่องาน / โฟลเดอร์</label>
+                <input type="text" id="fb-album-input" value="CRMS6_Students" class="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-brand-500">
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-slate-700 mb-1">จำนวนรูปสูงสุด</label>
+                <select id="fb-limit-input" class="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white">
+                  <option value="15">15 รูป</option>
+                  <option value="30" selected>30 รูป</option>
+                  <option value="50">50 รูป</option>
+                  <option value="100">100 รูป</option>
+                </select>
+              </div>
+            </div>
+
+            <button type="button" id="start-fb-btn" onclick="submitFacebookScraper()" class="w-full py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:opacity-95 text-white font-medium text-xs rounded-xl shadow-sm transition">
+              <span>⚡ ดูดรูปภาพและสแกนเข้าระบบ</span>
+            </button>
+            <div id="fb-status-box" class="p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs text-slate-600 hidden font-mono whitespace-pre-wrap max-h-36 overflow-y-auto"></div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- TAB 3: PDPA Removal Requests Moderation -->
+    <div id="tab-pane-reports" class="hidden space-y-4">
+      <div class="glass-card rounded-2xl p-4 flex items-center justify-between">
+        <div>
+          <h3 class="font-bold text-sm text-slate-900">รายการคำขอลบรูปภาพตามกฎหมาย PDPA</h3>
+          <p class="text-xs text-slate-500">จัดการคำขอซ่อนหรือลบรูปภาพจากผู้ใช้งาน</p>
+        </div>
+        <button type="button" onclick="loadReports()" class="px-3 py-1.5 text-xs text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition">
+          🔄 รีเฟรช
+        </button>
+      </div>
+
+      <div class="glass-card rounded-2xl overflow-hidden border border-slate-200">
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-slate-100/70 border-b border-slate-200 text-slate-600 uppercase text-[10px]">
+              <tr>
+                <th class="p-3.5">ID</th>
+                <th class="p-3.5">รูปภาพ</th>
+                <th class="p-3.5">เหตุผลในการขอลบ</th>
+                <th class="p-3.5">ข้อมูลผู้ติดต่อ</th>
+                <th class="p-3.5">วันที่แจ้ง</th>
+                <th class="p-3.5">สถานะ</th>
+                <th class="p-3.5 text-right">การจัดการ</th>
+              </tr>
+            </thead>
+            <tbody id="reports-table-body" class="divide-y divide-slate-100 text-slate-700">
+              <!-- Rendered dynamically -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Photo Full Preview Modal -->
+  <div id="preview-modal" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-md hidden flex items-center justify-center p-4" onclick="closePreviewModal()">
+    <div class="relative max-w-4xl w-full flex flex-col items-center" onclick="event.stopPropagation()">
+      <button type="button" onclick="closePreviewModal()" class="absolute -top-12 right-0 w-9 h-9 rounded-full bg-white/20 hover:bg-white/30 text-white flex items-center justify-center text-lg">✕</button>
+      <img id="preview-modal-img" src="" alt="Photo Full View" class="max-h-[80vh] object-contain rounded-2xl shadow-2xl">
+      <div id="preview-modal-caption" class="mt-3 text-xs text-white/80 font-mono"></div>
+    </div>
+  </div>
+
+  <!-- JavaScript Application Logic -->
+  <script>
+    let adminToken = localStorage.getItem('ruprao_admin_pin') || '';
+    let currentPage = 1;
+    let selectedFilesForUpload = [];
+    let debounceTimer = null;
+
+    window.addEventListener('DOMContentLoaded', () => {
+      if (adminToken) {
+        verifyAdminSession();
+      } else {
+        showAuthModal();
+      }
+    });
+
+    function showAuthModal() {
+      document.getElementById('admin-auth-modal').classList.remove('hidden');
+    }
+
+    function hideAuthModal() {
+      document.getElementById('admin-auth-modal').classList.add('hidden');
+    }
+
+    async function submitAdminLogin() {
+      const pin = document.getElementById('admin-pin-input').value.trim();
+      const errBox = document.getElementById('admin-pin-error');
+      if (!pin) return;
+
+      try {
+        const res = await fetch('/api/admin/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ pin })
+        });
+        const data = await res.json();
+        if (data.success) {
+          adminToken = pin;
+          localStorage.setItem('ruprao_admin_pin', pin);
+          errBox.classList.add('hidden');
+          hideAuthModal();
+          initDashboard();
+        } else {
+          errBox.classList.remove('hidden');
+        }
+      } catch (err) {
+        errBox.classList.remove('hidden');
+      }
+    }
+
+    async function verifyAdminSession() {
+      try {
+        const res = await fetch('/api/admin/overview', {
+          headers: { 'X-Admin-PIN': adminToken }
+        });
+        if (res.ok) {
+          hideAuthModal();
+          initDashboard();
+        } else {
+          showAuthModal();
+        }
+      } catch (e) {
+        showAuthModal();
+      }
+    }
+
+    function logoutAdmin() {
+      localStorage.removeItem('ruprao_admin_pin');
+      adminToken = '';
+      showAuthModal();
+    }
+
+    function initDashboard() {
+      loadOverview();
+      loadPhotos(1);
+      loadReports();
+    }
+
+    async function loadOverview() {
+      try {
+        const res = await fetch('/api/admin/overview', {
+          headers: { 'X-Admin-PIN': adminToken }
+        });
+        if (!res.ok) return;
+        const d = await res.json();
+        document.getElementById('stat-photos').innerText = d.photos_count.toLocaleString();
+        document.getElementById('stat-faces').innerText = d.faces_count.toLocaleString();
+        document.getElementById('stat-albums').innerText = d.albums_count.toLocaleString();
+        document.getElementById('stat-reports').innerText = d.reports_total.toLocaleString();
+        document.getElementById('stat-reports-sub').innerText = `${d.reports_pending} รอดำเนินการ`;
+
+        if (d.reports_pending > 0) {
+          const badge = document.getElementById('tab-report-badge');
+          badge.innerText = d.reports_pending;
+          badge.classList.remove('hidden');
+        }
+
+        // populate album filter options
+        const albumSelect = document.getElementById('filter-album');
+        const currentVal = albumSelect.value;
+        albumSelect.innerHTML = '<option value="">ทั้งหมด (ทุกอัลบั้ม)</option>';
+        d.albums.forEach(a => {
+          const opt = document.createElement('option');
+          opt.value = a.event_name;
+          opt.innerText = `${a.event_name} (${a.photo_count} รูป)`;
+          albumSelect.appendChild(opt);
+        });
+        albumSelect.value = currentVal;
+      } catch (err) {
+        console.error('Error loading overview:', err);
+      }
+    }
+
+    function debounceLoadPhotos() {
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => loadPhotos(1), 350);
+    }
+
+    async function loadPhotos(page = 1) {
+      currentPage = page;
+      const album = document.getElementById('filter-album').value;
+      const search = document.getElementById('filter-search').value.trim();
+      const grid = document.getElementById('photos-grid');
+      const countText = document.getElementById('gallery-count-text');
+
+      grid.innerHTML = '<div class="col-span-full py-12 text-center text-slate-400 text-xs">กำลังโหลดรูปภาพ...</div>';
+
+      try {
+        let url = `/api/admin/photos?page=${page}&limit=24`;
+        if (album) url += `&album=${encodeURIComponent(album)}`;
+        if (search) url += `&search=${encodeURIComponent(search)}`;
+
+        const res = await fetch(url, { headers: { 'X-Admin-PIN': adminToken } });
+        if (!res.ok) return;
+        const data = await res.json();
+
+        countText.innerText = `พบ ${data.total} รูป (หน้า ${data.page}/${data.total_pages})`;
+        grid.innerHTML = '';
+
+        if (data.photos.length === 0) {
+          grid.innerHTML = '<div class="col-span-full py-12 text-center text-slate-400 text-xs">ไม่พบรูปภาพตามเงื่อนไขที่เลือก</div>';
+          document.getElementById('pagination-controls').innerHTML = '';
+          return;
+        }
+
+        data.photos.forEach(p => {
+          const card = document.createElement('div');
+          card.className = 'glass-card rounded-2xl overflow-hidden flex flex-col group relative border border-slate-200 transition hover:shadow-lg';
+          
+          const hiddenBadge = p.is_hidden 
+            ? `<span class="absolute top-2 left-2 z-10 bg-rose-600 text-white text-[9px] font-bold px-2 py-0.5 rounded-full shadow">🚫 ซ่อนอยู่</span>` 
+            : '';
+
+          card.innerHTML = `
+            <div class="relative aspect-square bg-slate-100 overflow-hidden cursor-pointer" onclick="openPreviewModal('${p.photo_url}', '${p.rel_path} (${p.event_name})')">
+              ${hiddenBadge}
+              <img src="${p.thumb_url}" alt="Photo" loading="lazy" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300">
+              <span class="absolute bottom-2 right-2 bg-black/60 backdrop-blur-sm text-white text-[10px] px-2 py-0.5 rounded-full">
+                👤 ${p.face_count} หน้า
+              </span>
+            </div>
+            <div class="p-2.5 flex-1 flex flex-col justify-between bg-white text-[11px]">
+              <div>
+                <p class="font-medium text-slate-800 truncate" title="${p.rel_path}">${p.rel_path}</p>
+                <p class="text-[10px] text-slate-400 truncate">${p.event_name}</p>
+              </div>
+              <div class="pt-2 flex items-center justify-between border-t border-slate-100 mt-2">
+                <button type="button" onclick="toggleVisibility(${p.id}, ${p.is_hidden ? 0 : 1})" class="text-[10px] px-2 py-1 rounded-lg ${p.is_hidden ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'} transition font-medium">
+                  ${p.is_hidden ? '👁️ เลิกซ่อน' : '🚫 ซ่อน'}
+                </button>
+                <button type="button" onclick="deleteSinglePhoto(${p.id}, '${p.rel_path}')" class="text-[10px] px-2 py-1 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 transition font-medium">
+                  🗑️ ลบ
+                </button>
+              </div>
+            </div>
+          `;
+          grid.appendChild(card);
+        });
+
+        renderPagination(data.page, data.total_pages);
+      } catch (err) {
+        console.error('Error fetching photos:', err);
+      }
+    }
+
+    function renderPagination(current, total) {
+      const ctr = document.getElementById('pagination-controls');
+      ctr.innerHTML = '';
+      if (total <= 1) return;
+
+      if (current > 1) {
+        const prev = document.createElement('button');
+        prev.className = 'px-3 py-1.5 text-xs rounded-xl bg-white border border-slate-200 text-slate-700 hover:bg-slate-50';
+        prev.innerText = '← ก่อนหน้า';
+        prev.onclick = () => loadPhotos(current - 1);
+        ctr.appendChild(prev);
+      }
+
+      const info = document.createElement('span');
+      info.className = 'text-xs text-slate-500 font-medium px-2';
+      info.innerText = `หน้า ${current} จาก ${total}`;
+      ctr.appendChild(info);
+
+      if (current < total) {
+        const next = document.createElement('button');
+        next.className = 'px-3 py-1.5 text-xs rounded-xl bg-white border border-slate-200 text-slate-700 hover:bg-slate-50';
+        next.innerText = 'ถัดไป →';
+        next.onclick = () => loadPhotos(current + 1);
+        ctr.appendChild(next);
+      }
+    }
+
+    async function toggleVisibility(photoId, isHidden) {
+      try {
+        const res = await fetch('/api/admin/photos/toggle_visibility', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Admin-PIN': adminToken },
+          body: JSON.stringify({ photo_id: photoId, is_hidden: isHidden })
+        });
+        const d = await res.json();
+        if (d.success) {
+          loadPhotos(currentPage);
+          loadOverview();
+        }
+      } catch (e) {
+        alert('เกิดข้อผิดพลาดในการเปลี่ยนสถานะรูปภาพ');
+      }
+    }
+
+    async function deleteSinglePhoto(photoId, filename) {
+      if (!confirm(`คุณแน่ใจหรือไม่ว่าต้องการลบรูปภาพ "${filename}" ออกจากระบบถาวร?\n(เวกเตอร์ใบหน้าทั้งหมดของรูปนี้จะถูกลบออกจาก FAISS ทันที)`)) {
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/admin/photos/delete', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Admin-PIN': adminToken },
+          body: JSON.stringify({ photo_ids: [photoId] })
+        });
+        const d = await res.json();
+        if (d.success) {
+          alert('ลบรูปภาพเรียบร้อยแล้ว');
+          loadPhotos(currentPage);
+          loadOverview();
+        } else {
+          alert(d.error || 'ไม่สามารถลบรูปได้');
+        }
+      } catch (e) {
+        alert('เกิดข้อผิดพลาดขณะลบรูปภาพ');
+      }
+    }
+
+    // Direct Upload Handlers
+    function handleAdminFilesSelected(files) {
+      selectedFilesForUpload = Array.from(files);
+      const sum = document.getElementById('upload-files-summary');
+      const btn = document.getElementById('start-upload-btn');
+      if (selectedFilesForUpload.length > 0) {
+        sum.innerText = `เลือกแล้ว ${selectedFilesForUpload.length} ไฟล์`;
+        sum.classList.remove('hidden');
+        btn.disabled = false;
+        btn.classList.remove('bg-slate-300', 'cursor-not-allowed');
+        btn.classList.add('bg-brand-700', 'hover:bg-brand-800', 'cursor-pointer');
+      } else {
+        sum.classList.add('hidden');
+        btn.disabled = true;
+        btn.classList.add('bg-slate-300', 'cursor-not-allowed');
+      }
+    }
+
+    async function submitDirectUpload() {
+      if (selectedFilesForUpload.length === 0) return;
+      const album = document.getElementById('upload-album-input').value.trim() || 'งานกิจกรรมทั่วไป';
+      const btn = document.getElementById('start-upload-btn');
+      const prog = document.getElementById('upload-progress-text');
+
+      btn.disabled = true;
+      btn.innerText = '⏳ กำลังอัปโหลดและสแกนใบหน้าด้วย AI...';
+      prog.classList.remove('hidden');
+      prog.innerText = `กำลังส่งไฟล์ ${selectedFilesForUpload.length} รูปไปยังเซิร์ฟเวอร์...`;
+
+      const formData = new FormData();
+      formData.append('album', album);
+      selectedFilesForUpload.forEach(f => formData.append('files', f));
+
+      try {
+        const res = await fetch('/api/admin/upload', {
+          method: 'POST',
+          headers: { 'X-Admin-PIN': adminToken },
+          body: formData
+        });
+        const data = await res.json();
+        if (data.success) {
+          alert(`✨ สำเร็จ! ${data.message}`);
+          selectedFilesForUpload = [];
+          document.getElementById('upload-files-input').value = '';
+          document.getElementById('upload-files-summary').classList.add('hidden');
+          btn.innerText = '🚀 เริ่มอัปโหลดและสแกนใบหน้า';
+          btn.disabled = true;
+          btn.classList.add('bg-slate-300', 'cursor-not-allowed');
+          prog.classList.add('hidden');
+          initDashboard();
+          switchTab('gallery');
+        } else {
+          alert('❌ เกิดข้อผิดพลาด: ' + (data.error || 'ไม่สามารถอัปโหลดได้'));
+        }
+      } catch (err) {
+        alert('เกิดข้อผิดพลาดในการเชื่อมต่อ');
+      } finally {
+        btn.innerText = '🚀 เริ่มอัปโหลดและสแกนใบหน้า';
+      }
+    }
+
+    // Facebook Scraper Handler
+    async function submitFacebookScraper() {
+      const url = document.getElementById('fb-url-input').value.trim();
+      const album = document.getElementById('fb-album-input').value.trim() || 'CRMS6_Students';
+      const limit = parseInt(document.getElementById('fb-limit-input').value) || 30;
+      const btn = document.getElementById('start-fb-btn');
+      const statusBox = document.getElementById('fb-status-box');
+
+      if (!url) {
+        alert('กรุณาระบุ URL ของ Facebook ครับ');
+        return;
+      }
+
+      btn.disabled = true;
+      btn.innerHTML = '<span class="inline-block animate-spin mr-1.5">⏳</span> กำลังเชื่อมต่อ Facebook และเริ่มดูดรูปภาพ...';
+      statusBox.classList.remove('hidden');
+      statusBox.innerText = '🚀 กำลังเริ่มกระบวนการดูดรูปภาพจาก Facebook... (อาจใช้เวลา 30-60 วินาที)\n';
+
+      try {
+        const res = await fetch('/api/admin/fetch_facebook', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Admin-PIN': adminToken },
+          body: JSON.stringify({ url, album, limit })
+        });
+        const data = await res.json();
+        if (data.success) {
+          statusBox.innerText += '\n' + (data.output || data.message) + '\n\n✅ สแกนใบหน้าเข้าฐานข้อมูลเรียบร้อยแล้ว!';
+          alert('✨ ดึงรูปและสแกนใบหน้าจาก Facebook เรียบร้อยแล้ว!');
+          initDashboard();
+        } else {
+          statusBox.innerText += '\n❌ ข้อผิดพลาด: ' + (data.error || 'ไม่สามารถดึงรูปได้');
+        }
+      } catch (err) {
+        statusBox.innerText += '\n❌ เกิดข้อผิดพลาดในการส่งคำขอ';
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<span>⚡ ดูดรูปภาพและสแกนเข้าระบบ</span>';
+      }
+    }
+
+    // PDPA Reports Handlers
+    async function loadReports() {
+      const tbody = document.getElementById('reports-table-body');
+      tbody.innerHTML = '<tr><td colspan="7" class="p-6 text-center text-slate-400">กำลังโหลดคำขอลบรูปภาพ...</td></tr>';
+
+      try {
+        const res = await fetch('/api/admin/reports', {
+          headers: { 'X-Admin-PIN': adminToken }
+        });
+        if (!res.ok) return;
+        const d = await res.json();
+        tbody.innerHTML = '';
+
+        if (!d.reports || d.reports.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="7" class="p-6 text-center text-slate-400">✨ ไม่มีคำขอลบรูปภาพในระบบ</td></tr>';
+          return;
+        }
+
+        d.reports.forEach(r => {
+          const tr = document.createElement('tr');
+          tr.className = 'hover:bg-slate-50/80 transition';
+
+          let statusBadge = '<span class="bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full font-semibold">รอดำเนินการ</span>';
+          if (r.status === 'approved') statusBadge = '<span class="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-semibold">อนุมัติแล้ว</span>';
+          if (r.status === 'rejected') statusBadge = '<span class="bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full font-semibold">ปฏิเสธแล้ว</span>';
+
+          tr.innerHTML = `
+            <td class="p-3.5 font-mono font-medium">#${r.id}</td>
+            <td class="p-3.5">
+              <div class="w-12 h-12 rounded-lg overflow-hidden bg-slate-100 border border-slate-200 cursor-pointer" onclick="openPreviewModal('${r.photo_url}', 'คำขอ #${r.id} - ${r.rel_path}')">
+                <img src="${r.thumb_url}" class="w-full h-full object-cover">
+              </div>
+            </td>
+            <td class="p-3.5 max-w-xs break-words font-medium text-slate-900">${r.reason}</td>
+            <td class="p-3.5 text-slate-500">${r.contact_info || '-'}</td>
+            <td class="p-3.5 text-slate-400 whitespace-nowrap">${r.created_at}</td>
+            <td class="p-3.5">${statusBadge}</td>
+            <td class="p-3.5 text-right whitespace-nowrap space-x-1">
+              ${r.status === 'pending' ? `
+                <button type="button" onclick="actionOnReport(${r.id}, 'approve')" class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition font-medium">
+                  ✓ อนุมัติ & ซ่อนรูป
+                </button>
+                <button type="button" onclick="actionOnReport(${r.id}, 'reject')" class="px-2.5 py-1 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg transition font-medium">
+                  ✕ ปฏิเสธ
+                </button>
+              ` : `
+                <button type="button" onclick="actionOnReport(${r.id}, '${r.is_hidden ? 'unhide' : 'hide'}')" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg transition">
+                  ${r.is_hidden ? '👁️ เลิกซ่อน' : '🚫 ซ่อนรูป'}
+                </button>
+              `}
+            </td>
+          `;
+          tbody.appendChild(tr);
+        });
+      } catch (err) {
+        tbody.innerHTML = '<tr><td colspan="7" class="p-6 text-center text-rose-500">เกิดข้อผิดพลาดในการโหลดข้อมูล</td></tr>';
+      }
+    }
+
+    async function actionOnReport(reportId, action) {
+      if (!confirm(`ยืนยันการดำเนินการ: ${action}?`)) return;
+      try {
+        const res = await fetch(`/api/admin/reports/${reportId}/action`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Admin-PIN': adminToken },
+          body: JSON.stringify({ action })
+        });
+        const d = await res.json();
+        if (d.success) {
+          loadReports();
+          loadOverview();
+          loadPhotos(currentPage);
+        }
+      } catch (e) {
+        alert('เกิดข้อผิดพลาดในการดำเนินการ');
+      }
+    }
+
+    // Modal Helpers
+    function openPreviewModal(imgUrl, caption) {
+      document.getElementById('preview-modal-img').src = imgUrl;
+      document.getElementById('preview-modal-caption').innerText = caption;
+      document.getElementById('preview-modal').classList.remove('hidden');
+    }
+
+    function closePreviewModal() {
+      document.getElementById('preview-modal').classList.add('hidden');
+    }
+
+    function switchTab(tab) {
+      ['gallery', 'upload', 'reports'].forEach(t => {
+        document.getElementById(`tab-pane-${t}`).classList.add('hidden');
+        const b = document.getElementById(`tab-btn-${t}`);
+        b.classList.remove('border-brand-700', 'text-brand-700');
+        b.classList.add('border-transparent', 'text-slate-500');
+      });
+      document.getElementById(`tab-pane-${tab}`).classList.remove('hidden');
+      const activeBtn = document.getElementById(`tab-btn-${tab}`);
+      activeBtn.classList.remove('border-transparent', 'text-slate-500');
+      activeBtn.classList.add('border-brand-700', 'text-brand-700');
+    }
+  </script>
+</body>
+</html>
