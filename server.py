@@ -784,12 +784,32 @@ def _run_fetch_job(url: str, album: str, limit: int, photos_before: int):
                     del _fetch_job["lines"][:-40]   # เก็บแค่ 40 บรรทัดล่าสุด
         code = proc.wait(timeout=1800)
         added = _count_photos() - photos_before
+
+        # 🧽 นิสัยดีหลังดึงรูป: เก็บกวาดรูปซ้ำทันที (เก็บตัวในอัลบั้มหลักไว้เสมอ)
+        removed_dupes = 0
+        try:
+            import dedup_photos
+            from delete_photos import delete_by_rel_paths
+            conn = db.get_connection(DB_PATH)
+            rel_paths = [r[0] for r in conn.execute("SELECT rel_path FROM photos").fetchall()]
+            conn.close()
+            dupes = dedup_photos.find_duplicates(rel_paths)
+            if dupes:
+                delete_by_rel_paths(dupes)
+                removed_dupes = len(dupes)
+                with _fetch_lock:
+                    _fetch_job["lines"].append(f"🧽 จับรูปซ้ำได้ {removed_dupes} รูป — ลบอัตโนมัติ (เก็บตัวในอัลบั้มหลักไว้)")
+        except Exception as e:
+            with _fetch_lock:
+                _fetch_job["lines"].append(f"⚠️ เช็ครูปซ้ำขัดข้อง (ข้ามไป ไม่กระทบงานหลัก): {e}")
+
+        net = added - removed_dupes
         with _fetch_lock:
             _fetch_job["done"] = True
             _fetch_job["success"] = (code == 0)
-            _fetch_job["added"] = added
+            _fetch_job["added"] = net
             _fetch_job["message"] = (
-                f"เสร็จสมบูรณ์! เพิ่มเข้าคลัง {added} รูป (สแกนหน้ารวมอยู่ในกระบวนการเดียวกัน)"
+                f"เสร็จสมบูรณ์! เพิ่มเข้าคลัง {added} รูป" + (f" (เก็บกวาดรูปซ้ำออก {removed_dupes} รูป สุทธิ {net} รูป)" if removed_dupes else "")
                 if code == 0 else f"กระบวนการจบด้วยรหัส {code} — ดูรายละเอียดใน log ด้านบน"
             )
     except Exception as e:
