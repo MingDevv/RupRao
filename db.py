@@ -125,6 +125,24 @@ def get_faces_by_faiss_ids(conn, faiss_ids):
     return {row["faiss_id"]: dict(row) for row in rows}
 
 
+def get_photo_by_id(conn, photo_id):
+    """ดึงข้อมูลรูปตาม photo_id"""
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM photos WHERE id = ?", (int(photo_id),))
+    row = cur.fetchone()
+    return dict(row) if row else None
+
+
+def get_photos_by_ids(conn, photo_ids):
+    """ดึงข้อมูลรูปหลายรายการตามรายการ photo_ids"""
+    if not photo_ids:
+        return []
+    placeholders = ",".join("?" for _ in photo_ids)
+    cur = conn.cursor()
+    cur.execute(f"SELECT * FROM photos WHERE id IN ({placeholders})", [int(pid) for pid in photo_ids])
+    return [dict(r) for r in cur.fetchall()]
+
+
 def get_stats(conn):
     """สรุปสถิติในฐานข้อมูล: จำนวนรูปทั้งหมด และจำนวนหน้าที่สแกนแล้ว"""
     cur = conn.cursor()
@@ -135,3 +153,4 @@ def get_stats(conn):
     total_faces = cur.fetchone()[0]
 
     return {"photos": total_photos, "faces": total_faces}
+

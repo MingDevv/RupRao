@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RupRao (รูปเรา) — ค้นหาตัวเองจากรูปกิจกรรมโรงเรียนด้วย AI</title>
+  <!-- Google Fonts: Prompt -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Prompt', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              100: '#e0e7ff',
+              500: '#6366f1',
+              600: '#4f46e5',
+              700: '#4338ca',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { font-family: 'Prompt', sans-serif; }
+    /* สไตล์คานเรดาร์สแกน */
+    @keyframes scanline {
+      0% { top: 0%; opacity: 0.8; }
+      50% { opacity: 1; }
+      100% { top: 96%; opacity: 0.8; }
+    }
+    .scan-beam {
+      position: absolute;
+      left: 0;
+      width: 100%;
+      height: 4px;
+      background: linear-gradient(90deg, transparent, #22c55e, #4ade80, transparent);
+      box-shadow: 0 0 15px #22c55e;
+      animation: scanline 1.8s ease-in-out infinite alternate;
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col antialiased selection:bg-indigo-500 selection:text-white">
+
+  <!-- Header -->
+  <header class="bg-white/80 backdrop-blur-md border-b border-slate-200 sticky top-0 z-30">
+    <div class="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center text-white text-xl font-bold shadow-md shadow-indigo-200">
+          ✨
+        </div>
+        <div>
+          <h1 class="text-xl font-bold tracking-tight text-slate-900 leading-none">
+            RupRao <span class="text-indigo-600 text-sm font-normal bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-100">รูปเรา</span>
+          </h1>
+          <p class="text-xs text-slate-500 mt-0.5">ค้นหาตัวเองจากรูปกิจกรรมโรงเรียนด้วย AI</p>
+        </div>
+      </div>
+      
+      <!-- Stats Pill -->
+      <div id="stats-pill" class="flex items-center space-x-2 text-xs text-slate-600 bg-slate-100 px-3 py-1.5 rounded-full border border-slate-200">
+        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+        <span id="stats-text">คลังภาพพร้อมค้นหา</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="flex-grow max-w-6xl w-full mx-auto px-4 py-8 space-y-8">
+
+    <!-- Upload Card -->
+    <section class="bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-slate-200/80 max-w-2xl mx-auto relative overflow-hidden">
+      <div class="text-center space-y-2 mb-6">
+        <h2 class="text-2xl font-bold text-slate-900">อัปโหลดเซลฟี่ของคุณ 🤳</h2>
+        <p class="text-slate-500 text-sm">เพียง 1 รูป AI จะสแกนหาตัวคุณจากรูปกิจกรรมโรงเรียนทั้งหมดทันที</p>
+      </div>
+
+      <!-- Dropzone -->
+      <div id="drop-zone" class="border-2 border-dashed border-slate-300 rounded-2xl p-6 text-center hover:border-indigo-500 transition-colors cursor-pointer bg-slate-50/50 relative group">
+        <input type="file" id="file-input" accept="image/*" class="hidden">
+        
+        <!-- Empty State in Dropzone -->
+        <div id="drop-prompt" class="space-y-4 py-4">
+          <div class="w-16 h-16 mx-auto rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center text-3xl group-hover:scale-110 transition-transform">
+            📸
+          </div>
+          <div>
+            <p class="font-medium text-slate-800 text-base">ลากรูปมาวางที่นี่ หรือ <span class="text-indigo-600 underline">คลิกเพื่อเลือกรูป</span></p>
+            <p class="text-xs text-slate-400 mt-1">รองรับ JPG, PNG, WebP (เห็นใบหน้าชัดเจน)</p>
+          </div>
+          <div class="flex justify-center gap-3 pt-2">
+            <button type="button" onclick="triggerFileInput()" class="px-4 py-2 bg-white text-indigo-600 text-sm font-medium rounded-xl border border-indigo-200 shadow-sm hover:bg-indigo-50 transition">
+              📁 เลือกจากเครื่อง
+            </button>
+            <button type="button" onclick="triggerCameraInput()" class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-xl shadow-sm hover:bg-indigo-700 transition">
+              📷 ถ่ายรูปสด
+            </button>
+            <input type="file" id="camera-input" accept="image/*" capture="user" class="hidden">
+          </div>
+        </div>
+
+        <!-- Preview State in Dropzone -->
+        <div id="preview-container" class="hidden relative inline-block">
+          <div class="relative rounded-xl overflow-hidden border border-slate-300 shadow-sm inline-block max-h-64">
+            <img id="selfie-preview" src="" alt="Selfie Preview" class="max-h-64 object-contain mx-auto">
+            <div id="scan-beam" class="scan-beam hidden"></div>
+          </div>
+          <button type="button" onclick="resetSelfie(event)" class="absolute -top-3 -right-3 w-8 h-8 bg-red-500 text-white rounded-full flex items-center justify-center text-sm shadow hover:bg-red-600 transition">
+            ✕
+          </button>
+        </div>
+      </div>
+
+      <!-- Settings: Similarity Threshold Slider -->
+      <div class="mt-6 pt-5 border-t border-slate-100 space-y-3">
+        <div class="flex justify-between items-center text-xs">
+          <span class="font-medium text-slate-700">ระดับความเข้มงวดในการค้นหา:</span>
+          <span id="threshold-val-text" class="font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100">0.38 (สมดุล แนะนำ)</span>
+        </div>
+        <input type="range" id="threshold-slider" min="0.30" max="0.65" step="0.02" value="0.38" class="w-full accent-indigo-600 cursor-pointer">
+        <div class="flex justify-between text-[11px] text-slate-400 px-1">
+          <span>ค้นหากว้าง (รวมมุมไกล/เอียง)</span>
+          <span>สมดุล</span>
+          <span>ชัวร์ 100%</span>
+        </div>
+      </div>
+
+      <!-- Search Button -->
+      <div class="mt-6">
+        <button id="search-btn" disabled onclick="startSearch()" class="w-full py-3.5 px-6 rounded-2xl bg-slate-300 text-white font-medium text-base shadow-sm transition-all duration-200 flex items-center justify-center space-x-2 cursor-not-allowed">
+          <span>🔍 เริ่มค้นหาใบหน้า</span>
+        </button>
+      </div>
+
+      <!-- Loading Status Box -->
+      <div id="loading-box" class="hidden mt-6 p-4 rounded-2xl bg-indigo-50/70 border border-indigo-100 text-center space-y-2">
+        <div class="inline-block animate-spin text-2xl text-indigo-600">🌀</div>
+        <p id="loading-status-text" class="text-sm font-medium text-indigo-900">กำลังวิเคราะห์โครงหน้าด้วย AI...</p>
+        <p class="text-xs text-indigo-500">เปรียบเทียบลายเซ็นใบหน้า 512 มิติ ในคลังภาพด้วย FAISS</p>
+      </div>
+
+      <!-- Error Alert -->
+      <div id="error-box" class="hidden mt-6 p-4 rounded-2xl bg-red-50 border border-red-200 text-red-700 text-sm flex items-start space-x-3">
+        <span class="text-lg">⚠️</span>
+        <div id="error-text" class="flex-grow">เกิดข้อผิดพลาด</div>
+      </div>
+    </section>
+
+    <!-- Results Section -->
+    <section id="results-section" class="hidden space-y-6">
+      
+      <!-- Results Header Bar -->
+      <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h3 class="text-xl font-bold text-slate-900 flex items-center gap-2">
+            <span>🎉 ผลการค้นหา</span>
+            <span id="results-count-badge" class="text-sm font-semibold bg-emerald-100 text-emerald-800 px-2.5 py-0.5 rounded-full">พบ 0 รูป</span>
+          </h3>
+          <p class="text-xs text-slate-500 mt-1">คลิกที่รูปเพื่อเปิดดูแบบเต็ม หรือเลือกหลายรูปเพื่อดาวน์โหลดเป็น ZIP</p>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="flex items-center gap-3">
+          <button type="button" onclick="toggleSelectAll()" class="px-3.5 py-2 text-xs font-medium text-slate-700 bg-slate-100 rounded-xl hover:bg-slate-200 transition">
+            <span id="select-all-text">เลือกทั้งหมด</span>
+          </button>
+          <button type="button" id="download-zip-btn" onclick="downloadSelectedZip()" class="px-4 py-2 text-xs font-medium text-white bg-indigo-600 rounded-xl hover:bg-indigo-700 shadow-sm transition flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed">
+            <span>📥 โหลดเป็น ZIP</span>
+            <span id="selected-count-badge" class="bg-indigo-500 text-white px-1.5 py-0.2 rounded-full text-[10px]">0</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Event Filters -->
+      <div id="event-filters" class="flex flex-wrap gap-2">
+        <!-- Event pills dynamically inserted -->
+      </div>
+
+      <!-- Photo Grid -->
+      <div id="photo-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        <!-- Photo cards dynamically inserted -->
+      </div>
+
+      <!-- Empty Results State -->
+      <div id="empty-state" class="hidden bg-white rounded-3xl p-12 text-center border border-slate-200 max-w-md mx-auto space-y-3">
+        <div class="text-5xl">🔍</div>
+        <h4 class="text-lg font-bold text-slate-800">ไม่พบรูปที่ตรงกัน</h4>
+        <p class="text-xs text-slate-500">ลองเลื่อนแถบ "ความเข้มงวด" ไปทางซ้าย (เช่น 0.32) หรือลองถ่ายเซลฟี่มุมหน้าตรงใหม่อีกครั้งนะครับ</p>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Fullscreen Modal / Lightbox -->
+  <div id="lightbox-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col shadow-2xl relative">
+      <div class="p-4 border-b border-slate-100 flex items-center justify-between">
+        <div>
+          <h4 id="modal-title" class="font-bold text-slate-900 text-sm">รูปกิจกรรม</h4>
+          <p id="modal-subtitle" class="text-xs text-slate-500">ความเหมือน: 73%</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <a id="modal-download-link" href="#" download class="px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-xl text-xs font-medium hover:bg-indigo-100 transition">
+            📥 ดาวน์โหลดรูปจริง
+          </a>
+          <button type="button" onclick="closeModal()" class="w-8 h-8 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center hover:bg-slate-200 transition">
+            ✕
+          </button>
+        </div>
+      </div>
+      <div class="p-4 flex-grow overflow-auto flex items-center justify-center bg-slate-950/5">
+        <img id="modal-img" src="" alt="Full view" class="max-h-[70vh] object-contain rounded-xl shadow-md">
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer class="bg-white border-t border-slate-200 py-6 mt-12">
+    <div class="max-w-6xl mx-auto px-4 text-center space-y-2">
+      <p class="text-xs text-slate-500 flex items-center justify-center gap-1.5">
+        <span class="text-emerald-600">🔒</span>
+        <span><strong>นโยบายความเป็นส่วนตัว:</strong> รูปเซลฟี่ของคุณถูกประมวลผลบน RAM ชั่วคราวและลบออกทันที ไม่มีการบันทึกลงดิสก์หรือเซิร์ฟเวอร์เด็ดขาด</span>
+      </p>
+      <p class="text-[11px] text-slate-400">
+        โปรเจกต์ RupRao (รูปเรา) • พัฒนาโดย MingDevv ด้วย InsightFace + FAISS + FastAPI
+      </p>
+    </div>
+  </footer>
+
+  <!-- Frontend Logic -->
+  <script>
+    let currentSelfieBlob = null;
+    let searchResults = [];
+    let selectedPhotoIds = new Set();
+    let currentEventFilter = 'ALL';
+
+    // โหลดสถิติตั้งต้น
+    async function loadStats() {
+      try {
+        const res = await fetch('/api/stats');
+        const data = await res.json();
+        if (data.photos !== undefined) {
+          document.getElementById('stats-text').innerText = `คลังภาพ: ${data.photos} รูป (${data.faces} หน้า)`;
+        }
+      } catch (e) {
+        console.log('Error loading stats:', e);
+      }
+    }
+    loadStats();
+
+    // จัดการอัปโหลดไฟล์
+    const dropZone = document.getElementById('drop-zone');
+    const fileInput = document.getElementById('file-input');
+    const cameraInput = document.getElementById('camera-input');
+    const searchBtn = document.getElementById('search-btn');
+    const thresholdSlider = document.getElementById('threshold-slider');
+    const thresholdText = document.getElementById('threshold-val-text');
+
+    thresholdSlider.addEventListener('input', (e) => {
+      const val = parseFloat(e.target.value);
+      let desc = 'สมดุล แนะนำ';
+      if (val >= 0.50) desc = 'เข้มงวด ชัวร์มาก';
+      else if (val <= 0.34) desc = 'กว้าง กวาดทุกมุม';
+      thresholdText.innerText = `${val.toFixed(2)} (${desc})`;
+    });
+
+    function triggerFileInput() { fileInput.click(); }
+    function triggerCameraInput() { cameraInput.click(); }
+
+    fileInput.addEventListener('change', (e) => handleFiles(e.target.files));
+    cameraInput.addEventListener('change', (e) => handleFiles(e.target.files));
+
+    // Drag and Drop
+    ['dragenter', 'dragover'].forEach(name => {
+      dropZone.addEventListener(name, (e) => {
+        e.preventDefault();
+        dropZone.classList.add('border-indigo-500', 'bg-indigo-50/30');
+      });
+    });
+
+    ['dragleave', 'drop'].forEach(name => {
+      dropZone.addEventListener(name, (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('border-indigo-500', 'bg-indigo-50/30');
+      });
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+      if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+        handleFiles(e.dataTransfer.files);
+      }
+    });
+
+    function handleFiles(files) {
+      if (!files || files.length === 0) return;
+      const file = files[0];
+      if (!file.type.startsWith('image/')) {
+        showError('กรุณาเลือกไฟล์รูปภาพเท่านั้นครับ');
+        return;
+      }
+      hideError();
+      currentSelfieBlob = file;
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        document.getElementById('selfie-preview').src = e.target.result;
+        document.getElementById('drop-prompt').classList.add('hidden');
+        document.getElementById('preview-container').classList.remove('hidden');
+
+        searchBtn.disabled = false;
+        searchBtn.classList.remove('bg-slate-300', 'cursor-not-allowed');
+        searchBtn.classList.add('bg-gradient-to-r', 'from-indigo-600', 'to-violet-600', 'hover:opacity-95', 'cursor-pointer');
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function resetSelfie(event) {
+      if (event) event.stopPropagation();
+      currentSelfieBlob = null;
+      fileInput.value = '';
+      cameraInput.value = '';
+      document.getElementById('preview-container').classList.add('hidden');
+      document.getElementById('drop-prompt').classList.remove('hidden');
+
+      searchBtn.disabled = true;
+      searchBtn.classList.add('bg-slate-300', 'cursor-not-allowed');
+      searchBtn.classList.remove('bg-gradient-to-r', 'from-indigo-600', 'to-violet-600', 'hover:opacity-95', 'cursor-pointer');
+      hideError();
+    }
+
+    function showError(msg) {
+      document.getElementById('error-box').classList.remove('hidden');
+      document.getElementById('error-text').innerText = msg;
+    }
+
+    function hideError() {
+      document.getElementById('error-box').classList.add('hidden');
+    }
+
+    // เริ่มค้นหา
+    async function startSearch() {
+      if (!currentSelfieBlob) return;
+
+      hideError();
+      const loadingBox = document.getElementById('loading-box');
+      const scanBeam = document.getElementById('scan-beam');
+      const statusText = document.getElementById('loading-status-text');
+
+      loadingBox.classList.remove('hidden');
+      scanBeam.classList.remove('hidden');
+      searchBtn.disabled = true;
+
+      // อัปเดตข้อความสมจริง
+      const steps = [
+        'กำลังตรวจจับโครงหน้า 106 จุดในรูปเซลฟี่...',
+        'กำลังสกัดเวกเตอร์ลายเซ็นใบหน้า 512 มิติ (ArcFace)...',
+        'กำลังค้นหาเปรียบเทียบในคลังภาพด้วย FAISS...',
+      ];
+      let stepIdx = 0;
+      const timer = setInterval(() => {
+        stepIdx = (stepIdx + 1) % steps.length;
+        statusText.innerText = steps[stepIdx];
+      }, 700);
+
+      const formData = new FormData();
+      formData.append('selfie', currentSelfieBlob);
+      formData.append('threshold', thresholdSlider.value);
+
+      try {
+        const response = await fetch('/api/search', {
+          method: 'POST',
+          body: formData,
+        });
+
+        clearInterval(timer);
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+          throw new Error(data.error || data.detail || 'เกิดข้อผิดพลาดในการค้นหา');
+        }
+
+        searchResults = data.results || [];
+        selectedPhotoIds.clear();
+        renderResults();
+
+      } catch (err) {
+        clearInterval(timer);
+        showError(err.message);
+      } finally {
+        loadingBox.classList.add('hidden');
+        scanBeam.classList.add('hidden');
+        searchBtn.disabled = false;
+      }
+    }
+
+    function renderResults() {
+      const section = document.getElementById('results-section');
+      const grid = document.getElementById('photo-grid');
+      const emptyState = document.getElementById('empty-state');
+      const countBadge = document.getElementById('results-count-badge');
+      const filterContainer = document.getElementById('event-filters');
+
+      section.classList.remove('hidden');
+      section.scrollIntoView({ behavior: 'smooth' });
+
+      countBadge.innerText = `พบ ${searchResults.length} รูป`;
+      updateSelectedCount();
+
+      if (searchResults.length === 0) {
+        grid.innerHTML = '';
+        emptyState.classList.remove('hidden');
+        filterContainer.innerHTML = '';
+        return;
+      }
+
+      emptyState.classList.add('hidden');
+
+      // สร้าง Event Filter Pills
+      const events = Array.from(new Set(searchResults.map(r => r.event_name)));
+      filterContainer.innerHTML = `
+        <button onclick="setEventFilter('ALL')" class="px-3 py-1.5 rounded-full text-xs font-medium transition ${currentEventFilter === 'ALL' ? 'bg-indigo-600 text-white shadow-sm' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'}">
+          ทั้งหมด (${searchResults.length})
+        </button>
+        ${events.map(ev => {
+          const count = searchResults.filter(r => r.event_name === ev).length;
+          const active = currentEventFilter === ev;
+          return `
+            <button onclick="setEventFilter('${ev}')" class="px-3 py-1.5 rounded-full text-xs font-medium transition ${active ? 'bg-indigo-600 text-white shadow-sm' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'}">
+              ${ev} (${count})
+            </button>
+          `;
+        }).join('')}
+      `;
+
+      // กรองตาม Event
+      const filtered = currentEventFilter === 'ALL'
+        ? searchResults
+        : searchResults.filter(r => r.event_name === currentEventFilter);
+
+      // วาด Grid รูป
+      grid.innerHTML = filtered.map(item => {
+        const isSelected = selectedPhotoIds.has(item.photo_id);
+        const scoreClass = item.similarity >= 0.60
+          ? 'bg-emerald-500/90 text-white'
+          : item.similarity >= 0.45
+            ? 'bg-amber-500/90 text-white'
+            : 'bg-slate-600/90 text-white';
+
+        return `
+          <div class="bg-white rounded-2xl overflow-hidden shadow-sm border border-slate-200 hover:shadow-md transition-all group flex flex-col">
+            <!-- Image Frame -->
+            <div class="relative bg-slate-100 aspect-[4/3] overflow-hidden cursor-pointer" onclick="openModal(${item.photo_id})">
+              <img src="${item.thumb_url}" alt="${item.rel_path}" loading="lazy" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300">
+              
+              <!-- Match Badge -->
+              <div class="absolute top-2.5 left-2.5 px-2.5 py-1 rounded-full text-xs font-semibold backdrop-blur-sm shadow-sm ${scoreClass}">
+                ${item.similarity_percent}% ${item.confidence_label}
+              </div>
+
+              <!-- Selection Checkbox -->
+              <div class="absolute top-2.5 right-2.5" onclick="event.stopPropagation()">
+                <input type="checkbox" onchange="toggleSelectPhoto(${item.photo_id})" ${isSelected ? 'checked' : ''} class="w-5 h-5 rounded-md accent-indigo-600 cursor-pointer shadow">
+              </div>
+            </div>
+
+            <!-- Card Meta -->
+            <div class="p-3.5 flex items-center justify-between mt-auto">
+              <div>
+                <p class="text-xs font-semibold text-slate-800 truncate max-w-[150px]">${item.event_name}</p>
+                <p class="text-[11px] text-slate-400 truncate max-w-[150px]">${item.rel_path}</p>
+              </div>
+              <a href="${item.photo_url}" download="${item.rel_path}" title="โหลดรูปนี้" class="w-8 h-8 rounded-lg bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-500 hover:bg-indigo-50 hover:text-indigo-600 transition">
+                📥
+              </a>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function setEventFilter(ev) {
+      currentEventFilter = ev;
+      renderResults();
+    }
+
+    function toggleSelectPhoto(photoId) {
+      if (selectedPhotoIds.has(photoId)) {
+        selectedPhotoIds.delete(photoId);
+      } else {
+        selectedPhotoIds.add(photoId);
+      }
+      updateSelectedCount();
+    }
+
+    function toggleSelectAll() {
+      const filtered = currentEventFilter === 'ALL'
+        ? searchResults
+        : searchResults.filter(r => r.event_name === currentEventFilter);
+
+      if (selectedPhotoIds.size === filtered.length) {
+        selectedPhotoIds.clear();
+      } else {
+        filtered.forEach(item => selectedPhotoIds.add(item.photo_id));
+      }
+      renderResults();
+    }
+
+    function updateSelectedCount() {
+      const count = selectedPhotoIds.size;
+      document.getElementById('selected-count-badge').innerText = count;
+      document.getElementById('select-all-text').innerText = count > 0 && count === searchResults.length ? 'ยกเลิกทั้งหมด' : 'เลือกทั้งหมด';
+      document.getElementById('download-zip-btn').disabled = (count === 0);
+    }
+
+    function downloadSelectedZip() {
+      if (selectedPhotoIds.size === 0) return;
+      const idsParam = Array.from(selectedPhotoIds).join(',');
+      window.location.href = `/api/download?ids=${idsParam}`;
+    }
+
+    // Modal Lightbox
+    function openModal(photoId) {
+      const item = searchResults.find(r => r.photo_id === photoId);
+      if (!item) return;
+
+      document.getElementById('modal-title').innerText = item.event_name;
+      document.getElementById('modal-subtitle').innerText = `ความเหมือน: ${item.similarity_percent}% (${item.confidence_label}) • ${item.rel_path}`;
+      document.getElementById('modal-img').src = item.photo_url;
+      document.getElementById('modal-download-link').href = item.photo_url;
+      document.getElementById('modal-download-link').download = item.rel_path;
+
+      document.getElementById('lightbox-modal').classList.remove('hidden');
+    }
+
+    function closeModal() {
+      document.getElementById('lightbox-modal').classList.add('hidden');
+    }
+
+    document.getElementById('lightbox-modal').addEventListener('click', (e) => {
+      if (e.target.id === 'lightbox-modal') closeModal();
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeModal();
+    });
+  </script>
+</body>
+</html>
