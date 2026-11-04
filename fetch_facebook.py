@@ -13,6 +13,7 @@ fetch_facebook.py — สคริปต์ดูดรูปกิจกรร�
   python fetch_facebook.py https://www.facebook.com/media/set/?set=a.xxxx --album "กีฬาสี_2567" --scan
 """
 import argparse
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -23,18 +24,41 @@ GALLERY_DL = BASE / "venv" / "bin" / "gallery-dl"
 PYTHON_BIN = BASE / "venv" / "bin" / "python"
 
 
+def resolve_fb_url(url: str) -> str:
+    """แปลง share link (เช่น /share/p/...) เป็น URL โพสต์จริงบน Facebook"""
+    url = url.strip()
+    if "/share/" in url:
+        mobile_url = re.sub(r"https?://(www\.)?facebook\.com", "https://m.facebook.com", url)
+        try:
+            cmd = ["curl", "-s", "-i", "-A", "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)", mobile_url]
+            res = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
+            for line in res.stdout.splitlines():
+                if line.lower().startswith("location:"):
+                    loc = line.split(":", 1)[1].strip()
+                    clean_url = loc.split("?")[0]
+                    clean_url = clean_url.replace("m.facebook.com", "www.facebook.com")
+                    print(f"🔗 แก้ไข Share URL เป็น URL จริง: {clean_url}")
+                    return clean_url
+        except Exception as e:
+            print(f"⚠️ เกิดข้อผิดพลาดขณะ resolve share URL: {e}")
+    return url
+
+
 def main():
     parser = argparse.ArgumentParser(description="ดูดรูปภาพจากเพจ Facebook โรงเรียนเข้าสู่ RupRao")
-    parser.add_argument("url", help="URL ของเพจ Facebook หรือ อัลบั้มรูป")
+    parser.add_argument("url", help="URL ของเพจ Facebook หรือ อัลบั้มรูป หรือ ลิงก์โพสต์")
     parser.add_argument("--limit", type=int, default=50, help="จำนวนรูปสูงสุดที่ต้องการดึง (ค่าเริ่มต้น: 50 รูป)")
     parser.add_argument("--album", type=str, default="Facebook_Photos", help="ชื่องาน/โฟลเดอร์สำหรับเก็บรูป")
     parser.add_argument("--scan", action="store_true", help="สั่งสแกนใบหน้าเข้าระบบทันทีหลังจากดาวน์โหลดเสร็จ")
 
     args = parser.parse_args()
 
-    # จัดการ URL: ถ้าเป็นหน้าเพจหลัก ให้ชี้ไปที่ /photos เพื่อดึงภาพกิจกรรม
-    target_url = args.url.strip()
-    if not any(k in target_url for k in ["/photos", "/media", "/albums"]):
+    # จัดการ URL: ถอด Share Link และตรวจสอบประเภท URL
+    target_url = resolve_fb_url(args.url)
+    
+    # ถ้าเป็นหน้าเพจหลัก (ไม่ใช่โพสต์, อัลบั้ม, หรือรูปภาพ) ให้ชี้ไปที่ /photos เพื่อดึงภาพกิจกรรม
+    post_indicators = ["/posts/", "/photo", "/photos", "/media", "/albums", "/permalink.php", "set="]
+    if not any(k in target_url for k in post_indicators):
         target_url = target_url.rstrip("/") + "/photos"
 
     out_dir = DATA_RAW / args.album

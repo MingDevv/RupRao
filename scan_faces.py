@@ -66,11 +66,14 @@ def extract_event_name(file_path, base_dir):
     """
     แกะชื่องานจากชื่อโฟลเดอร์
     เช่น school-photos/2568-02-14_กีฬาสี/001.jpg -> '2568-02-14_กีฬาสี'
+    หรือ data/raw/CRMS6_Students/001.jpg -> 'CRMS6_Students'
     """
     try:
         rel = file_path.relative_to(base_dir)
         if len(rel.parts) > 1:
             return rel.parts[0]
+        elif base_dir and base_dir.name:
+            return base_dir.name
     except Exception:
         pass
     return "กิจกรรมทั่วไป"
