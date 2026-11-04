@@ -707,7 +707,7 @@
       }
     }
 
-    // Facebook Scraper Handler
+    // Facebook Scraper Handler — ส่งงานเข้าพื้นหลัง แล้วถามความคืบหน้าทุก 2.5 วินาที
     async function submitFacebookScraper() {
       const url = document.getElementById('fb-url-input').value.trim();
       const album = document.getElementById('fb-album-input').value.trim() || 'CRMS6_Students';
@@ -721,9 +721,9 @@
       }
 
       btn.disabled = true;
-      btn.innerHTML = '<span class="inline-block animate-spin mr-1.5">⏳</span> กำลังเชื่อมต่อ Facebook และเริ่มดูดรูปภาพ...';
+      btn.innerHTML = '<span class="inline-block animate-spin mr-1.5">⏳</span> งานดึงรูปกำลังทำงาน...';
       statusBox.classList.remove('hidden');
-      statusBox.innerText = '🚀 กำลังเริ่มกระบวนการดูดรูปภาพจาก Facebook... (อาจใช้เวลา 30-60 วินาที)\n';
+      statusBox.innerText = '🚀 ส่งคำขอแล้ว! ระบบจะดูดรูป + สแกนหน้าในพื้นหลัง (ความคืบหน้าสดๆ จะขึ้นที่นี่)\n';
 
       try {
         const res = await fetch('/api/admin/fetch_facebook', {
@@ -732,15 +732,37 @@
           body: JSON.stringify({ url, album, limit })
         });
         const data = await res.json();
-        if (data.success) {
-          statusBox.innerText += '\n' + (data.output || data.message) + '\n\n✅ สแกนใบหน้าเข้าฐานข้อมูลเรียบร้อยแล้ว!';
-          alert('✨ ดึงรูปและสแกนใบหน้าจาก Facebook เรียบร้อยแล้ว!');
-          initDashboard();
-        } else {
-          statusBox.innerText += '\n❌ ข้อผิดพลาด: ' + (data.error || 'ไม่สามารถดึงรูปได้');
+        if (!data.success) {
+          statusBox.innerText += '\n❌ ' + (data.error || data.message || 'เริ่มงานไม่สำเร็จ');
+          return;
+        }
+        statusBox.innerText += '\n' + (data.message || '') + '\n';
+
+        // วนถามความคืบหน้าจนกว่างานจะจบ
+        while (true) {
+          await new Promise(r => setTimeout(r, 2500));
+          const s = await (await fetch('/api/admin/fetch_facebook/status', { headers: { 'X-Admin-PIN': adminToken } })).json();
+          if (s.lines && s.lines.length) {
+            statusBox.innerText = '🚀 ความคืบหน้าล่าสุด:\n' + s.lines.slice(-6).join('\n');
+          }
+          if (!s.running && !s.done) {   // เซิร์ฟเวอร์รีสตาร์ทระหว่างทาง — สถานะหาย
+            statusBox.innerText += '\n⚠️ เสียการเชื่อมต่อสถานะ (เซิร์ฟเวอร์อาจรีสตาร์ท) — เช็คจำนวนรูปในคลังด้านบนได้เลย';
+            break;
+          }
+          if (!s.running && s.done) {
+            if (s.success) {
+              statusBox.innerText += `\n\n✅ ${s.message}`;
+              alert(`✨ ดึงรูปเสร็จ! เพิ่มเข้าคลัง ${s.added ?? '?'} รูป`);
+              initDashboard();
+            } else {
+              statusBox.innerText += `\n\n❌ ${s.message}`;
+              alert('❌ ดึงรูปไม่สำเร็จ — ดูรายละเอียดในกล่องสถานะด้านบน');
+            }
+            break;
+          }
         }
       } catch (err) {
-        statusBox.innerText += '\n❌ เกิดข้อผิดพลาดในการส่งคำขอ';
+        statusBox.innerText += '\n❌ เกิดข้อผิดพลาดในการส่งคำขอ: ' + err;
       } finally {
         btn.disabled = false;
         btn.innerHTML = '<span>⚡ ดูดรูปภาพและสแกนเข้าระบบ</span>';

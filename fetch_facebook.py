@@ -90,17 +90,26 @@ def main():
         target_url
     ]
 
+    image_exts = [".jpg", ".jpeg", ".png", ".webp"]
+    before = {p.name for p in out_dir.glob("*") if p.suffix.lower() in image_exts}
+
     print("⏳ กำลังเชื่อมต่อ Facebook และเริ่มดาวน์โหลดรูปภาพความละเอียดสูง...")
+    download_ok = True
     try:
-        proc = subprocess.run(cmd, check=True)
+        subprocess.run(cmd, check=True)
         print("\n✅ ดาวน์โหลดรูปภาพจาก Facebook เรียบร้อยแล้ว!")
     except subprocess.CalledProcessError as e:
-        print(f"\n⚠️ เกิดข้อผิดพลาดขณะดาวน์โหลด: {e}")
-        return
+        download_ok = False
+        print(f"\n❌ ดาวน์โหลดไม่สำเร็จ (gallery-dl exit {e.returncode})")
+        print("   สาเหตุที่พบบ่อย: Facebook จำกัดการเข้าถึงชั่วคราว (รอสักครู่แล้วลองใหม่) หรือ URL ไม่ถูกต้อง")
 
-    # นับจำนวนรูปที่โหลดมาได้
-    images = [p for p in out_dir.glob("*") if p.suffix.lower() in [".jpg", ".jpeg", ".png", ".webp"]]
-    print(f"📸 พบรูปในโฟลเดอร์ {args.album} ทั้งหมด {len(images)} รูป")
+    # นับผลจริง: รูปใหม่ = ไฟล์ที่เพิ่มเข้ามาจริงๆ (ไฟล์ซ้ำ gallery-dl ข้ามให้เอง)
+    after = {p.name for p in out_dir.glob("*") if p.suffix.lower() in image_exts}
+    new_files = after - before
+    print(f"📸 รูปในโฟลเดอร์ {args.album}: รวม {len(after)} รูป (ดึงใหม่ครั้งนี้ {len(new_files)} รูป)")
+    print(f"RESULT: new={len(new_files)} total={len(after)} download_ok={download_ok}")
+    if not new_files:
+        print("⚠️ ไม่มีรูปใหม่เลย! อาจเป็นเพราะเคยดึงรูปเหล่านี้ไปแล้ว หรือ Facebook จำกัดการเข้าถึงชั่วคราว (ระบบจะสแกนรูปเก่าที่ยังไม่ได้สแกนต่อให้)")
 
     if args.scan:
         print("\n🧠 กำลังเริ่มสแกนใบหน้าเข้าสู่ฐานข้อมูล RupRao ทันที...")

@@ -752,55 +752,102 @@ async def upload_photos_admin(
     }
 
 
+# ── งานดึงรูป Facebook เบื้องหลัง: สั่งแล้วตอบทันที หน้าเว็บถามความคืบหน้าผ่าน /status ──
+import subprocess  # noqa: E402
+import time  # noqa: E402
+
+_fetch_job = {
+    "running": False, "done": False, "success": None,
+    "lines": [], "message": "", "added": None, "started_at": None,
+}
+_fetch_lock = threading.Lock()
+
+
+def _count_photos() -> int:
+    conn = db.get_connection(DB_PATH)
+    n = conn.execute("SELECT COUNT(*) FROM photos").fetchone()[0]
+    conn.close()
+    return int(n)
+
+
+def _run_fetch_job(url: str, album: str, limit: int, photos_before: int):
+    """รัน fetch_facebook.py (--scan) ในเธรดแยก อ่าน output สดๆ เก็บไว้ให้หน้าเว็บดู"""
+    script = BASE / "fetch_facebook.py"
+    cmd = [sys.executable, str(script), url, "--album", album, "--limit", str(limit), "--scan"]
+    try:
+        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+        for line in proc.stdout:
+            line = line.rstrip()
+            if line:
+                with _fetch_lock:
+                    _fetch_job["lines"].append(line)
+                    del _fetch_job["lines"][:-40]   # เก็บแค่ 40 บรรทัดล่าสุด
+        code = proc.wait(timeout=1800)
+        added = _count_photos() - photos_before
+        with _fetch_lock:
+            _fetch_job["done"] = True
+            _fetch_job["success"] = (code == 0)
+            _fetch_job["added"] = added
+            _fetch_job["message"] = (
+                f"เสร็จสมบูรณ์! เพิ่มเข้าคลัง {added} รูป (สแกนหน้ารวมอยู่ในกระบวนการเดียวกัน)"
+                if code == 0 else f"กระบวนการจบด้วยรหัส {code} — ดูรายละเอียดใน log ด้านบน"
+            )
+    except Exception as e:
+        with _fetch_lock:
+            _fetch_job["done"] = True
+            _fetch_job["success"] = False
+            _fetch_job["message"] = f"ระบบขัดข้องระหว่างดึงรูป: {e}"
+    finally:
+        get_faiss_index()   # บังคับ reload index ทันทีหลังสแกนเสร็จ
+        with _fetch_lock:
+            _fetch_job["running"] = False
+
+
 @app.post("/api/admin/fetch_facebook")
 async def fetch_facebook_admin(
     payload: dict = Body(...),
     authorized: bool = Depends(check_admin_auth)
 ):
-    """สั่งดึงรูปภาพจาก Facebook อัตโนมัติในพื้นหลัง (ใช้ sys.executable เพื่อความเข้ากันได้กับ Docker)"""
-    import subprocess
+    """สั่งดึงรูปจาก Facebook — ตอบทันทีว่าเริ่มแล้ว ความคืบหน้าดูที่ /api/admin/fetch_facebook/status"""
     url = str(payload.get("url", "")).strip()
-    album = str(payload.get("album", "Facebook_Photos")).strip()
+    album = str(payload.get("album", "Facebook_Photos")).strip() or "Facebook_Photos"
     limit = int(payload.get("limit", 30))
 
     if not url:
         raise HTTPException(status_code=400, detail="กรุณาระบุ URL ของ Facebook")
 
-    # ตรวจสอบความพร้อมของโปรแกรม gallery-dl ใน environment
     import shutil
     has_gallery_dl = shutil.which("gallery-dl") is not None
     if not has_gallery_dl:
         try:
-            import gallery_dl
+            import gallery_dl  # noqa: F401
             has_gallery_dl = True
         except ImportError:
             has_gallery_dl = False
-
     if not has_gallery_dl:
         return JSONResponse(
             status_code=400,
-            content={
-                "success": False,
-                "error": "ยังไม่ได้ติดตั้ง gallery-dl ในระบบ กรุณาติดตั้งด้วยคำสั่ง: pip install gallery-dl"
-            }
+            content={"success": False, "error": "ยังไม่ได้ติดตั้ง gallery-dl ในระบบ กรุณาติดตั้งด้วยคำสั่ง: pip install gallery-dl"}
         )
 
-    script = BASE / "fetch_facebook.py"
-    python_bin = sys.executable
-    cmd = [str(python_bin), str(script), url, "--album", album, "--limit", str(limit), "--scan"]
+    with _fetch_lock:
+        if _fetch_job["running"]:
+            return {"success": True, "already_running": True,
+                    "message": "มีงานดึงรูปกำลังทำงานอยู่แล้ว — ดูความคืบหน้าที่กล่องสถานะเดิม"}
+        photos_before = _count_photos()
+        _fetch_job.update(running=True, done=False, success=None, lines=[],
+                          message="", added=None, started_at=time.time())
 
-    try:
-        res = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
-        get_faiss_index()
-        return {
-            "success": True,
-            "output": res.stdout,
-            "message": f"ดึงรูปภาพจาก Facebook ลงอัลบั้ม '{album}' สำเร็จ"
-        }
-    except subprocess.TimeoutExpired:
-        return JSONResponse(status_code=504, content={"success": False, "error": "กระบวนการใช้เวลานานเกินกำหนด"})
-    except Exception as e:
-        return JSONResponse(status_code=500, content={"success": False, "error": str(e)})
+    threading.Thread(target=_run_fetch_job, args=(url, album, limit, photos_before), daemon=True).start()
+    return {"success": True, "started": True,
+            "message": f"เริ่มดึงรูปสูงสุด {limit} รูปเข้าอัลบั้ม '{album}' ในพื้นหลังแล้ว — ระบบจะสแกนหน้าให้ต่อเอง"}
+
+
+@app.get("/api/admin/fetch_facebook/status")
+async def fetch_facebook_status(authorized: bool = Depends(check_admin_auth)):
+    """หน้าเว็บถามความคืบหน้าของงานดึงรูป (เรียกทุก ~2-3 วินาที)"""
+    with _fetch_lock:
+        return dict(_fetch_job)
 
 
 @app.post("/api/admin/scan_disk")
