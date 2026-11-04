@@ -56,6 +56,7 @@ app.add_middleware(
 )
 
 _index_cache = None
+_index_mtime = 0
 
 
 def check_pin_auth(
@@ -75,14 +76,16 @@ def check_pin_auth(
 
 
 def get_faiss_index():
-    """โหลด FAISS Index ไว้ในหน่วยความจำเพื่อความเร็วในการค้นหาระดับไมโครวินาที"""
-    global _index_cache
-    if _index_cache is None:
-        if INDEX_PATH.exists():
+    """โหลด FAISS Index ไว้ในหน่วยความจำ และรีโหลดอัตโนมัติเมื่อไฟล์ index.faiss มีการอัปเดตใหม่"""
+    global _index_cache, _index_mtime
+    if INDEX_PATH.exists():
+        current_mtime = INDEX_PATH.stat().st_mtime
+        if _index_cache is None or current_mtime > _index_mtime:
             _index_cache = faiss.read_index(str(INDEX_PATH))
-        else:
-            # สร้าง Empty Index สำรองกรณีเพิ่งติดตั้งใหม่ยังไม่มีไฟล์ index.faiss
-            _index_cache = faiss.IndexIDMap2(faiss.IndexFlatIP(512))
+            _index_mtime = current_mtime
+    elif _index_cache is None:
+        # สร้าง Empty Index สำรองกรณีเพิ่งติดตั้งใหม่ยังไม่มีไฟล์ index.faiss
+        _index_cache = faiss.IndexIDMap2(faiss.IndexFlatIP(512))
     return _index_cache
 
 
