@@ -22,7 +22,7 @@ def get_connection(db_path="data/faces.db"):
 
 
 def init_schema(conn):
-    """สร้างตาราง photos, faces และ index ถ้ายังไม่มี"""
+    """สร้างตาราง photos, faces, reports และ index ถ้ายังไม่มี"""
     with conn:
         conn.executescript("""
         CREATE TABLE IF NOT EXISTS photos (
@@ -32,6 +32,7 @@ def init_schema(conn):
             width INTEGER,
             height INTEGER,
             file_size INTEGER,
+            is_hidden INTEGER DEFAULT 0,
             scanned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
 
@@ -48,10 +49,29 @@ def init_schema(conn):
             FOREIGN KEY (photo_id) REFERENCES photos (id) ON DELETE CASCADE
         );
 
+        CREATE TABLE IF NOT EXISTS reports (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            photo_id INTEGER NOT NULL,
+            reason TEXT NOT NULL,
+            contact_info TEXT,
+            status TEXT DEFAULT 'pending',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (photo_id) REFERENCES photos (id) ON DELETE CASCADE
+        );
+
         CREATE INDEX IF NOT EXISTS idx_photos_rel_path ON photos(rel_path);
         CREATE INDEX IF NOT EXISTS idx_faces_photo_id ON faces(photo_id);
         CREATE INDEX IF NOT EXISTS idx_faces_faiss_id ON faces(faiss_id);
+        CREATE INDEX IF NOT EXISTS idx_reports_photo_id ON reports(photo_id);
+        CREATE INDEX IF NOT EXISTS idx_reports_status ON reports(status);
         """)
+
+        # ตรวจสอบว่ามีคอลัมน์ is_hidden ในตาราง photos เดิมหรือยัง (Migration สำหรับ DB เดิม)
+        cur = conn.cursor()
+        cur.execute("PRAGMA table_info(photos)")
+        columns = [col[1] for col in cur.fetchall()]
+        if "is_hidden" not in columns:
+            cur.execute("ALTER TABLE photos ADD COLUMN is_hidden INTEGER DEFAULT 0")
 
 
 def is_photo_scanned(conn, rel_path):
@@ -114,10 +134,12 @@ def get_faces_by_faiss_ids(conn, faiss_ids):
             p.rel_path,
             p.event_name,
             p.width,
-            p.height
+            p.height,
+            p.is_hidden
         FROM faces f
         JOIN photos p ON f.photo_id = p.id
         WHERE f.faiss_id IN ({placeholders})
+          AND (p.is_hidden IS NULL OR p.is_hidden = 0)
     """
     cur = conn.cursor()
     cur.execute(sql, [int(fid) for fid in faiss_ids])
@@ -146,11 +168,78 @@ def get_photos_by_ids(conn, photo_ids):
 def get_stats(conn):
     """สรุปสถิติในฐานข้อมูล: จำนวนรูปทั้งหมด และจำนวนหน้าที่สแกนแล้ว"""
     cur = conn.cursor()
-    cur.execute("SELECT COUNT(*) FROM photos")
+    cur.execute("SELECT COUNT(*) FROM photos WHERE is_hidden IS NULL OR is_hidden = 0")
     total_photos = cur.fetchone()[0]
 
-    cur.execute("SELECT COUNT(*) FROM faces")
+    cur.execute("SELECT COUNT(*) FROM faces f JOIN photos p ON f.photo_id = p.id WHERE p.is_hidden IS NULL OR p.is_hidden = 0")
     total_faces = cur.fetchone()[0]
 
     return {"photos": total_photos, "faces": total_faces}
+
+
+# --- ส่วนจัดการสิทธิ PDPA และคำขอลบรูปภาพ ---
+
+def add_report(conn, photo_id: int, reason: str, contact_info: str = "") -> int:
+    """บันทึกคำร้องขอลบรูปภาพจากผู้ใช้งาน (PDPA Right to be Forgotten)"""
+    cur = conn.cursor()
+    cur.execute(
+        """
+        INSERT INTO reports (photo_id, reason, contact_info, status)
+        VALUES (?, ?, ?, 'pending')
+        """,
+        (int(photo_id), str(reason).strip(), str(contact_info).strip())
+    )
+    conn.commit()
+    return cur.lastrowid
+
+
+def get_reports(conn, status: str = None):
+    """ดึงรายการคำขอลบรูปภาพทั้งหมด"""
+    cur = conn.cursor()
+    if status:
+        cur.execute(
+            """
+            SELECT r.*, p.rel_path, p.event_name, p.is_hidden
+            FROM reports r
+            JOIN photos p ON r.photo_id = p.id
+            WHERE r.status = ?
+            ORDER BY r.created_at DESC
+            """,
+            (status,)
+        )
+    else:
+        cur.execute(
+            """
+            SELECT r.*, p.rel_path, p.event_name, p.is_hidden
+            FROM reports r
+            JOIN photos p ON r.photo_id = p.id
+            ORDER BY r.created_at DESC
+            """
+        )
+    return [dict(row) for row in cur.fetchall()]
+
+
+def set_photo_hidden(conn, photo_id: int, is_hidden: int = 1):
+    """สั่งซ่อนหรือเลิกซ่อนรูปภาพ (ซ่อน = ไม่แสดงในผลค้นหาและดาวน์โหลดไม่ได้)"""
+    cur = conn.cursor()
+    cur.execute("UPDATE photos SET is_hidden = ? WHERE id = ?", (int(is_hidden), int(photo_id)))
+    conn.commit()
+    return cur.rowcount > 0
+
+
+def update_report_status(conn, report_id: int, status: str, hide_photo: bool = False):
+    """อัปเดตสถานะคำขอ (approved / rejected) และซ่อนรูปภาพถ้าได้รับการอนุมัติ"""
+    cur = conn.cursor()
+    cur.execute("SELECT photo_id FROM reports WHERE id = ?", (int(report_id),))
+    row = cur.fetchone()
+    if not row:
+        return False
+
+    photo_id = row[0]
+    cur.execute("UPDATE reports SET status = ? WHERE id = ?", (status, int(report_id)))
+    if hide_photo and status == "approved":
+        cur.execute("UPDATE photos SET is_hidden = 1 WHERE id = ?", (int(photo_id),))
+    conn.commit()
+    return True
+
 

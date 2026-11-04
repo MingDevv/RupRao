@@ -19,9 +19,9 @@ from typing import List, Optional
 import cv2
 import faiss
 import numpy as np
-from fastapi import FastAPI, File, Form, HTTPException, Query, UploadFile
+from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, Query, UploadFile, Body
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
 import db
@@ -35,6 +35,10 @@ INDEX_PATH = DATA_DIR / "index.faiss"
 THUMB_DIR = DATA_DIR / "thumbs"
 INPUT_DIR = DATA_DIR / "input"
 STATIC_DIR = BASE / "static"
+
+# รหัสผ่านสำหรับป้องกันการเข้าถึงจากบุคคลภายนอกโรงเรียน (School PIN)
+# สามารถกำหนดผ่าน Environment Variable RUPRAO_PIN หรือเว้นว่าง/ตั้งเป็น 0 เพื่อปิดการตรวจ
+RUPRAO_PIN = os.getenv("RUPRAO_PIN", "RUPRAO2026").strip()
 
 app = FastAPI(
     title="RupRao — ค้นหาตัวเองจากรูปกิจกรรมโรงเรียน",
@@ -52,6 +56,22 @@ app.add_middleware(
 )
 
 _index_cache = None
+
+
+def check_pin_auth(
+    x_school_pin: Optional[str] = Header(None, alias="X-School-PIN"),
+    pin: Optional[str] = Query(None)
+):
+    """ตรวจสอบสิทธิ์การเข้าถึงด้วยรหัสผ่านโรงเรียน (School PIN Gate)"""
+    if not RUPRAO_PIN or RUPRAO_PIN == "0":
+        return True
+    client_pin = (x_school_pin or pin or "").strip()
+    if client_pin != RUPRAO_PIN:
+        raise HTTPException(
+            status_code=401,
+            detail="กรุณาระบุรหัสผ่านโรงเรียน (School PIN) ที่ถูกต้องเพื่อเข้าใช้งาน"
+        )
+    return True
 
 
 def get_faiss_index():
@@ -93,6 +113,55 @@ def find_photo_path(rel_path: str) -> Optional[Path]:
     return None
 
 
+@app.get("/api/auth/status")
+async def get_auth_status():
+    """ตรวจสอบว่าระบบเปิดใช้งานรหัสผ่านโรงเรียน (School PIN) หรือไม่"""
+    return {
+        "pin_required": bool(RUPRAO_PIN and RUPRAO_PIN != "0")
+    }
+
+
+@app.post("/api/auth/verify")
+async def verify_pin(payload: dict = Body(...)):
+    """ตรวจสอบความถูกต้องของรหัส PIN โรงเรียน"""
+    if not RUPRAO_PIN or RUPRAO_PIN == "0":
+        return {"success": True, "message": "ไม่ต้องใช้รหัสผ่าน"}
+
+    user_pin = str(payload.get("pin", "")).strip()
+    if user_pin == RUPRAO_PIN:
+        return {"success": True, "message": "ยืนยันรหัสโรงเรียนสำเร็จ"}
+    return JSONResponse(
+        status_code=401,
+        content={"success": False, "error": "รหัสผ่านโรงเรียนไม่ถูกต้อง กรุณาลองใหม่อีกครั้ง"}
+    )
+
+
+@app.post("/api/report_photo")
+async def report_photo(
+    payload: dict = Body(...),
+    authorized: bool = Depends(check_pin_auth)
+):
+    """บันทึกคำร้องขอลบรูปภาพตามกฎหมาย PDPA (Right to be Forgotten)"""
+    photo_id = payload.get("photo_id")
+    reason = str(payload.get("reason", "")).strip()
+    contact_info = str(payload.get("contact_info", "")).strip()
+
+    if not photo_id or not reason:
+        raise HTTPException(status_code=400, detail="กรุณาระบุ photo_id และเหตุผลในการขอลบ")
+
+    conn = db.get_connection(DB_PATH)
+    photo = db.get_photo_by_id(conn, int(photo_id))
+    if not photo:
+        raise HTTPException(status_code=404, detail="ไม่พบรูปภาพที่ระบุ")
+
+    report_id = db.add_report(conn, int(photo_id), reason, contact_info)
+    return {
+        "success": True,
+        "report_id": report_id,
+        "message": "ส่งคำร้องขอลบรูปเรียบร้อยแล้ว ทีมงานจะตรวจสอบและดำเนินการโดยเร็วที่สุด"
+    }
+
+
 @app.get("/api/stats")
 async def get_stats():
     """ส่งข้อมูลสถิติรูปภาพและใบหน้าในระบบ"""
@@ -105,7 +174,8 @@ async def get_stats():
 @app.post("/api/search")
 async def search_faces(
     selfie: UploadFile = File(...),
-    threshold: float = Form(0.35)
+    threshold: float = Form(0.35),
+    authorized: bool = Depends(check_pin_auth)
 ):
     """
     รับรูปเซลฟี่ → ประมวลผลใน RAM → ค้นหาใน FAISS → ลบเซลฟี่ออกจากหน่วยความจำทันที
@@ -207,6 +277,9 @@ async def get_thumbnail(photo_id: int):
     if not photo:
         raise HTTPException(status_code=404, detail="ไม่พบรูปภาพ")
 
+    if photo.get("is_hidden"):
+        raise HTTPException(status_code=403, detail="รูปภาพนี้ถูกระงับการแสดงผลตามคำร้องขอ (PDPA)")
+
     rel = Path(photo["rel_path"])
     thumb_path = (THUMB_DIR / rel).with_suffix(".webp")
 
@@ -238,6 +311,9 @@ async def get_photo(photo_id: int):
     if not photo:
         raise HTTPException(status_code=404, detail="ไม่พบรูปภาพ")
 
+    if photo.get("is_hidden"):
+        raise HTTPException(status_code=403, detail="รูปภาพนี้ถูกระงับการเผยแพร่ตามคำร้องขอ (PDPA)")
+
     real_path = find_photo_path(photo["rel_path"])
     if not real_path:
         raise HTTPException(status_code=404, detail="ไฟล์รูปภาพต้นฉบับไม่อยู่ในเครื่อง")
@@ -246,8 +322,11 @@ async def get_photo(photo_id: int):
 
 
 @app.get("/api/download")
-async def download_photos(ids: str = Query(..., description="รายการ photo_id คั่นด้วยจุลภาค เช่น 1,2,5")):
-    """รวมรูปภาพที่เลือกลงในไฟล์ ZIP ให้ดาวน์โหลดในคลิกเดียว"""
+async def download_photos(
+    ids: str = Query(..., description="รายการ photo_id คั่นด้วยจุลภาค เช่น 1,2,5"),
+    authorized: bool = Depends(check_pin_auth)
+):
+    """รวมรูปภาพที่เลือกลงในไฟล์ ZIP ให้ดาวน์โหลดในคลิกเดียว (ไม่รวมรูปที่ถูกสั่งซ่อน)"""
     try:
         photo_ids = [int(x.strip()) for x in ids.split(",") if x.strip().isdigit()]
     except Exception:
@@ -260,6 +339,11 @@ async def download_photos(ids: str = Query(..., description="รายการ 
     photos = db.get_photos_by_ids(conn, photo_ids)
     if not photos:
         raise HTTPException(status_code=404, detail="ไม่พบรูปภาพที่ระบุ")
+
+    # กรองเฉพาะรูปที่ไม่ได้ถูกซ่อน
+    photos = [p for p in photos if not p.get("is_hidden")]
+    if not photos:
+        raise HTTPException(status_code=403, detail="รูปภาพที่เลือกถูกระงับการเผยแพร่ทั้งหมด")
 
     # สร้างไฟล์ ZIP ในหน่วยความจำ
     zip_buffer = io.BytesIO()

@@ -1,0 +1,14 @@
+version: '3.8'
+
+services:
+  ruprao:
+    build: .
+    container_name: ruprao-app
+    ports:
+      - "8000:7860"
+    volumes:
+      - ./data:/app/data
+    environment:
+      - PORT=7860
+      - RUPRAO_PIN=RUPRAO2026
+    restart: unless-stopped
