@@ -72,10 +72,19 @@ def extract_event_name(file_path, base_dir):
         rel = file_path.relative_to(base_dir)
         if len(rel.parts) > 1:
             return rel.parts[0]
-        elif base_dir and base_dir.name:
+        elif base_dir and base_dir.name and base_dir.name not in ["raw", "input", "data"]:
             return base_dir.name
     except Exception:
         pass
+
+    if "raw" in file_path.parts:
+        try:
+            idx = file_path.parts.index("raw")
+            if idx + 1 < len(file_path.parts) - 1:
+                return file_path.parts[idx + 1]
+        except Exception:
+            pass
+
     return "กิจกรรมทั่วไป"
 
 
@@ -123,10 +132,7 @@ def main():
         if interrupted:
             break
 
-        try:
-            rel_path = file_path.relative_to(source_dir)
-        except ValueError:
-            rel_path = file_path.name
+        rel_path = file_path.name
 
         # ตรวจสอบระบบ Resume: ถ้าเคยสแกนแล้วให้ข้ามทันที
         if db.is_photo_scanned(conn, str(rel_path)):

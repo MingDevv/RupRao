@@ -237,6 +237,7 @@ async def search_faces(
 
     k = min(50, index.ntotal)
     distances, indices = index.search(query_emb_2d, k)
+    print(f"\n🔍 [SEARCH LOG] ค้นพบใบหน้าในรูปค้นหา: {len(faces)} หน้า | คะแนน Top 5 สูงสุด: {[round(float(d), 4) for d in distances[0][:5]]} | Threshold: {threshold}")
 
     # 6. ดึงข้อมูลจาก SQLite
     conn = db.get_connection(DB_PATH)
@@ -678,6 +679,44 @@ async def fetch_facebook_admin(
         return JSONResponse(status_code=504, content={"success": False, "error": "กระบวนการใช้เวลานานเกินกำหนด"})
     except Exception as e:
         return JSONResponse(status_code=500, content={"success": False, "error": str(e)})
+
+
+@app.post("/api/admin/scan_disk")
+async def scan_disk_admin(
+    authorized: bool = Depends(check_admin_auth)
+):
+    """สแกนรูปภาพที่ยังไม่ได้เข้าระบบทั้งหมดใน data/raw และ data/input ทันที"""
+    import subprocess
+    script = BASE / "scan_faces.py"
+    python_bin = BASE / "venv" / "bin" / "python"
+
+    targets = [DATA_DIR / "raw", INPUT_DIR]
+    outputs = []
+    for t in targets:
+        if t.exists():
+            cmd = [str(python_bin), str(script), str(t)]
+            try:
+                proc = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+                outputs.append(proc.stdout)
+            except Exception as e:
+                outputs.append(f"Error: {e}")
+
+    # บังคับรีโหลด FAISS Index
+    global _index_cache, _index_mtime
+    _index_cache = None
+    _index_mtime = 0
+    get_faiss_index()
+
+    conn = db.get_connection(DB_PATH)
+    stats = db.get_stats(conn)
+
+    return {
+        "success": True,
+        "message": "สแกนรูปภาพทั้งหมดในระบบเรียบร้อยแล้ว",
+        "photos_count": stats.get("photos", 0),
+        "faces_count": stats.get("faces", 0),
+        "details": "\n".join(outputs)
+    }
 
 
 @app.get("/api/admin/reports")

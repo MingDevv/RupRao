@@ -209,6 +209,9 @@
           <select id="filter-album" onchange="loadPhotos(1)" class="px-3.5 py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white">
             <option value="">ทั้งหมด (ทุกอัลบั้ม)</option>
           </select>
+          <button type="button" onclick="triggerScanDisk()" class="scan-disk-btn px-3.5 py-2 bg-brand-50 hover:bg-brand-100 text-brand-700 font-semibold text-xs rounded-xl border border-brand-200 transition flex items-center gap-1.5 whitespace-nowrap shadow-sm">
+            <span>⚡ สแกนไฟล์ในระบบทั้งหมด</span>
+          </button>
         </div>
         <div class="flex items-center justify-between sm:justify-end gap-2 text-xs text-slate-500">
           <span id="gallery-count-text">กำลังโหลดรายการรูปภาพ...</span>
@@ -228,7 +231,7 @@
 
     <!-- TAB 2: Ingest New Photos -->
     <div id="tab-pane-upload" class="hidden space-y-6">
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         
         <!-- Option 1: Direct File Upload -->
         <div class="glass-card rounded-3xl p-6 space-y-4">
@@ -302,6 +305,34 @@
             </button>
             <div id="fb-status-box" class="p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs text-slate-600 hidden font-mono whitespace-pre-wrap max-h-36 overflow-y-auto"></div>
           </div>
+        </div>
+
+        <!-- Option 3: Scan Local System Files -->
+        <div class="glass-card rounded-3xl p-6 space-y-4 flex flex-col justify-between">
+          <div class="space-y-4">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center text-xl font-bold border border-amber-100">
+                🔄
+              </div>
+              <div>
+                <h3 class="font-bold text-base text-slate-900">สแกนไฟล์ที่มีอยู่ในระบบ</h3>
+                <p class="text-xs text-slate-500">สแกนรูปภาพที่คัดลอกลงโฟลเดอร์ data/raw ทันที</p>
+              </div>
+            </div>
+
+            <div class="p-4 rounded-2xl bg-amber-50/50 border border-amber-200/60 text-xs text-amber-900 space-y-2">
+              <p class="font-semibold flex items-center gap-1.5">
+                <span>💡</span> เหมาะสำหรับการนำเข้ารูปจำนวนมาก
+              </p>
+              <p class="text-amber-800 text-[11px] leading-relaxed">
+                กรณีครูหรือทีมงานคัดลอกโฟลเดอร์รูปภาพมาวางใน <code class="bg-amber-100 px-1 py-0.5 rounded text-amber-900 font-mono">data/raw/</code> โดยตรงผ่าน Finder หรือ Flashdrive ให้กดปุ่มนี้เพื่อสแกนใบหน้าและเพิ่มเข้าฐานข้อมูลอัตโนมัติ
+              </p>
+            </div>
+          </div>
+
+          <button type="button" onclick="triggerScanDisk()" class="scan-disk-btn w-full py-3 bg-gradient-to-r from-amber-500 to-amber-600 hover:opacity-95 text-white font-semibold text-xs rounded-xl shadow-sm transition flex items-center justify-center gap-1.5">
+            <span>⚡ สแกนไฟล์ในระบบทั้งหมดทันที</span>
+          </button>
         </div>
 
       </div>
@@ -702,6 +733,38 @@
       } finally {
         btn.disabled = false;
         btn.innerHTML = '<span>⚡ ดูดรูปภาพและสแกนเข้าระบบ</span>';
+      }
+    }
+
+    // System Disk Scanner Handler
+    async function triggerScanDisk() {
+      if (!confirm('ต้องการสแกนไฟล์รูปภาพทั้งหมดในระบบ/โฟลเดอร์ data/raw และ data/input ใช่หรือไม่?')) return;
+      
+      const scanBtns = document.querySelectorAll('.scan-disk-btn');
+      scanBtns.forEach(b => {
+        b.disabled = true;
+        b.innerHTML = '<span class="inline-block animate-spin mr-1">⏳</span> กำลังสแกน...';
+      });
+
+      try {
+        const res = await fetch('/api/admin/scan_disk', {
+          method: 'POST',
+          headers: { 'X-Admin-PIN': adminToken }
+        });
+        const data = await res.json();
+        if (data.success) {
+          alert(`✅ สแกนเสร็จสิ้น!\nรูปภาพในระบบทั้งหมด: ${data.photos_count} รูป\nใบหน้าที่ตรวจพบในระบบ: ${data.faces_count} ใบหน้า`);
+          initDashboard();
+        } else {
+          alert('❌ เกิดข้อผิดพลาด: ' + (data.error || 'ไม่สามารถสแกนได้'));
+        }
+      } catch (err) {
+        alert('❌ เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์');
+      } finally {
+        scanBtns.forEach(b => {
+          b.disabled = false;
+          b.innerHTML = '<span>⚡ สแกนไฟล์ในระบบทั้งหมด</span>';
+        });
       }
     }
 
