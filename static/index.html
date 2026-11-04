@@ -116,13 +116,14 @@
             <p class="text-xs text-slate-400 mt-1">รองรับ JPG, PNG, WebP (เห็นใบหน้าชัดเจน)</p>
           </div>
           <div class="flex justify-center gap-3 pt-2">
-            <button type="button" onclick="triggerFileInput()" class="px-4 py-2 bg-white text-indigo-600 text-sm font-medium rounded-xl border border-indigo-200 shadow-sm hover:bg-indigo-50 transition">
+            <button type="button" onclick="triggerFileInput()" class="px-4 py-2 bg-white text-indigo-600 text-sm font-medium rounded-xl border border-indigo-200 shadow-sm hover:bg-indigo-50 transition cursor-pointer">
               📁 เลือกจากเครื่อง
             </button>
-            <button type="button" onclick="triggerCameraInput()" class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-xl shadow-sm hover:bg-indigo-700 transition">
-              📷 ถ่ายรูปสด
+            <button type="button" onclick="triggerCameraInput()" class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-xl shadow-sm hover:bg-indigo-700 transition flex items-center gap-1.5 cursor-pointer">
+              <span>📷</span>
+              <span>ถ่ายรูปสด</span>
             </button>
-            <input type="file" id="camera-input" accept="image/*" capture="user" class="hidden">
+            <input type="file" id="camera-input" accept="image/*" capture="user" style="position: absolute; opacity: 0; width: 0.1px; height: 0.1px; overflow: hidden; z-index: -1;">
           </div>
         </div>
 
@@ -245,6 +246,48 @@
       </div>
       <div class="p-4 flex-grow overflow-auto flex items-center justify-center bg-slate-950/5">
         <img id="modal-img" src="" alt="Full view" class="max-h-[70vh] object-contain rounded-xl shadow-md">
+      </div>
+    </div>
+  </div>
+
+  <!-- Live Camera Viewfinder Modal -->
+  <div id="camera-modal" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-md hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 rounded-3xl max-w-md w-full overflow-hidden shadow-2xl border border-slate-800 relative flex flex-col">
+      <!-- Camera Header -->
+      <div class="p-4 flex items-center justify-between text-white border-b border-slate-800">
+        <div class="flex items-center gap-2">
+          <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+          <h4 class="font-semibold text-sm">กล้องถ่ายรูปเซลฟี่</h4>
+        </div>
+        <div class="flex items-center gap-2">
+          <button type="button" id="switch-cam-btn" onclick="switchCameraFacing()" title="สลับกล้องหน้า/หลัง" class="w-8 h-8 rounded-full bg-slate-800 text-slate-300 flex items-center justify-center hover:bg-slate-700 transition text-sm">
+            🔄
+          </button>
+          <button type="button" onclick="closeCameraModal()" class="w-8 h-8 rounded-full bg-slate-800 text-slate-300 flex items-center justify-center hover:bg-slate-700 transition text-sm">
+            ✕
+          </button>
+        </div>
+      </div>
+
+      <!-- Video Feed with Face Guide Overlay -->
+      <div class="relative bg-black aspect-[3/4] flex items-center justify-center overflow-hidden">
+        <video id="webcam-video" autoplay playsinline muted class="w-full h-full object-cover"></video>
+        
+        <!-- Oval Face Guide -->
+        <div class="absolute inset-0 pointer-events-none flex flex-col items-center justify-center">
+          <div class="w-48 h-64 border-2 border-dashed border-white/60 rounded-[50%] shadow-[0_0_0_9999px_rgba(0,0,0,0.35)]"></div>
+          <p class="mt-4 text-xs text-white/90 bg-black/60 px-3.5 py-1 rounded-full backdrop-blur-sm shadow">
+            จัดใบหน้าให้อยู่ในกรอบวงรี
+          </p>
+        </div>
+      </div>
+
+      <!-- Shutter Controls -->
+      <div class="p-5 bg-slate-950 flex flex-col items-center justify-center gap-2">
+        <button type="button" onclick="captureWebcamFrame()" class="w-16 h-16 rounded-full border-4 border-white bg-indigo-600 hover:bg-indigo-500 active:scale-90 transition-all shadow-xl flex items-center justify-center text-2xl text-white">
+          📸
+        </button>
+        <p class="text-[11px] text-slate-400">กดปุ่มเพื่อถ่ายภาพ</p>
       </div>
     </div>
   </div>
@@ -543,7 +586,88 @@
     });
 
     function triggerFileInput() { fileInput.click(); }
-    function triggerCameraInput() { cameraInput.click(); }
+
+    let cameraStream = null;
+    let currentFacingMode = 'user';
+
+    async function triggerCameraInput() {
+      // 1. ตรวจสอบว่าบราวเซอร์รองรับกล้อง WebRTC หรือไม่ (ทำงานบน HTTPS และ Localhost)
+      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        try {
+          await startCameraStream(currentFacingMode);
+          document.getElementById('camera-modal').classList.remove('hidden');
+          return;
+        } catch (err) {
+          console.warn("ไม่สามารถเปิดกล้อง WebRTC ได้ จะสลับไปเปิดกล้องระบบ:", err);
+        }
+      }
+      // 2. Fallback สลับไปใช้กล้อง native ของมือถือ
+      cameraInput.click();
+    }
+
+    async function startCameraStream(facing) {
+      if (cameraStream) {
+        cameraStream.getTracks().forEach(t => t.stop());
+        cameraStream = null;
+      }
+      const constraints = {
+        video: {
+          facingMode: { ideal: facing },
+          width: { ideal: 1280 },
+          height: { ideal: 960 }
+        },
+        audio: false
+      };
+      cameraStream = await navigator.mediaDevices.getUserMedia(constraints);
+      const video = document.getElementById('webcam-video');
+      video.srcObject = cameraStream;
+      video.style.transform = (facing === 'user') ? 'scaleX(-1)' : 'scaleX(1)';
+    }
+
+    function switchCameraFacing() {
+      currentFacingMode = (currentFacingMode === 'user') ? 'environment' : 'user';
+      startCameraStream(currentFacingMode).catch(err => {
+        console.warn("ไม่สามารถสลับกล้องได้:", err);
+      });
+    }
+
+    function closeCameraModal() {
+      if (cameraStream) {
+        cameraStream.getTracks().forEach(t => t.stop());
+        cameraStream = null;
+      }
+      document.getElementById('camera-modal').classList.add('hidden');
+    }
+
+    function captureWebcamFrame() {
+      const video = document.getElementById('webcam-video');
+      if (!video || !video.videoWidth) {
+        showError('กล้องยังไม่พร้อมจับภาพ กรุณารอสักครู่แล้วลองใหม่');
+        return;
+      }
+
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext('2d');
+
+      // กลับภาพแนวนอนถ้าเป็นกล้องหน้า เพื่อให้เหมือนกระจก
+      if (currentFacingMode === 'user') {
+        ctx.translate(canvas.width, 0);
+        ctx.scale(-1, 1);
+      }
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+      canvas.toBlob((blob) => {
+        if (!blob) {
+          showError('ไม่สามารถดึงภาพจากกล้องได้');
+          return;
+        }
+        const file = new File([blob], "selfie_capture.jpg", { type: "image/jpeg" });
+        closeCameraModal();
+        handleFiles([file]);
+      }, 'image/jpeg', 0.92);
+    }
 
     fileInput.addEventListener('change', (e) => handleFiles(e.target.files));
     cameraInput.addEventListener('change', (e) => handleFiles(e.target.files));
@@ -936,10 +1060,14 @@
     }
 
     // Event Listeners for Backdrop Clicks
-    ['lightbox-modal', 'pin-modal', 'report-modal', 'pdpa-modal'].forEach(id => {
+    ['lightbox-modal', 'pin-modal', 'report-modal', 'pdpa-modal', 'camera-modal'].forEach(id => {
       document.getElementById(id).addEventListener('click', (e) => {
         if (e.target.id === id) {
           if (id === 'pin-modal' && !schoolPin) return; // Prevent closing if PIN required and not entered
+          if (id === 'camera-modal') {
+            closeCameraModal();
+            return;
+          }
           document.getElementById(id).classList.add('hidden');
         }
       });
@@ -950,6 +1078,7 @@
         closeModal();
         closeReportModal();
         closePdpaModal();
+        closeCameraModal();
         if (schoolPin) closePinModal();
       }
     });
