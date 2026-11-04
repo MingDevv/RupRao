@@ -6,3 +6,9 @@ __pycache__/
 # รูปภาพทุกชนิด — เก็บไว้ที่ Google Drive เท่านั้น!
 # เหตุผล: รูปหน้าคน = ข้อมูลส่วนบุคคล ห้ามขึ้น GitHub แม้แต่ repo ส่วนตัว
 data/
+*.db
+*.sqlite
+*.sqlite3
+*.faiss
+*.webp
+
