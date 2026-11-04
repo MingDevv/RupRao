@@ -36,16 +36,50 @@
   </script>
 
   <style>
-    body { font-family: 'Prompt', sans-serif; background-color: #f8fafc; }
+    body {
+      font-family: 'Prompt', sans-serif;
+      background: #f8fafc;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+    .ambient-orb-1 {
+      position: fixed;
+      top: -10%;
+      left: -10%;
+      width: 45vw;
+      height: 45vw;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(14, 165, 233, 0.2) 0%, rgba(99, 102, 241, 0.12) 50%, transparent 70%);
+      filter: blur(60px);
+      z-index: 0;
+      pointer-events: none;
+    }
+    .ambient-orb-2 {
+      position: fixed;
+      bottom: -10%;
+      right: -10%;
+      width: 40vw;
+      height: 40vw;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(99, 102, 241, 0.18) 0%, rgba(236, 72, 153, 0.1) 50%, transparent 70%);
+      filter: blur(60px);
+      z-index: 0;
+      pointer-events: none;
+    }
     .glass-card {
-      background: rgba(255, 255, 255, 0.95);
-      backdrop-filter: blur(12px);
-      border: 1px solid #e2e8f0;
-      box-shadow: 0 10px 25px -5px rgba(2, 132, 199, 0.05);
+      background: rgba(255, 255, 255, 0.94);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.85);
+      box-shadow: 0 14px 35px -10px rgba(12, 74, 110, 0.08), 0 0 0 1px rgba(14, 165, 233, 0.1);
     }
   </style>
 </head>
-<body class="min-h-screen text-slate-800 flex flex-col">
+<body class="min-h-screen text-slate-800 flex flex-col relative antialiased selection:bg-brand-500 selection:text-white">
+
+  <!-- Ambient Light Orbs -->
+  <div class="ambient-orb-1"></div>
+  <div class="ambient-orb-2"></div>
 
   <!-- Top Navigation Bar -->
   <header class="bg-white/90 backdrop-blur-md sticky top-0 z-40 border-b border-slate-200">
@@ -100,7 +134,7 @@
   </div>
 
   <!-- Main Container -->
-  <main class="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full space-y-6">
+  <main class="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full space-y-6 relative z-10">
 
     <!-- KPI Metric Cards -->
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">

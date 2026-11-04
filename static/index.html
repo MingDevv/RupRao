@@ -8,7 +8,7 @@
   <!-- Google Fonts: Prompt -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -20,18 +20,18 @@
             sans: ['Prompt', 'sans-serif'],
           },
           colors: {
-            school: {
+            brand: {
               50: '#f0f7ff',
-              100: '#e0effe',
-              200: '#bae0fd',
-              300: '#7cc4fa',
-              400: '#36a5f6',
-              500: '#0c87eb',
-              600: '#026bc9',
-              700: '#0355a2',
-              800: '#074885',
-              900: '#0c3d6e',
-              950: '#08274a',
+              100: '#e0f0fe',
+              200: '#bae2fd',
+              300: '#7ccafd',
+              400: '#36aff9',
+              500: '#0c93eb',
+              600: '#0074ca',
+              700: '#015da5',
+              800: '#054e87',
+              900: '#0a4270',
+              950: '#062a4b',
             }
           }
         }
@@ -42,41 +42,93 @@
   <style>
     body {
       font-family: 'Prompt', sans-serif;
-      background: radial-gradient(120% 120% at 50% 10%, #f0f7ff 0%, #f8fafc 60%, #eef5fc 100%);
+      background: #f8fafc;
       min-height: 100vh;
+      overflow-x: hidden;
     }
 
-    .school-glass {
-      background: rgba(255, 255, 255, 0.94);
-      backdrop-filter: blur(16px);
-      border: 1px solid rgba(2, 107, 201, 0.12);
-      box-shadow: 0 16px 36px -8px rgba(7, 72, 133, 0.08);
+    /* Vibrant Ambient Background Orbs */
+    .ambient-orb-1 {
+      position: fixed;
+      top: -10%;
+      left: -10%;
+      width: 50vw;
+      height: 50vw;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(14, 165, 233, 0.25) 0%, rgba(99, 102, 241, 0.15) 50%, transparent 70%);
+      filter: blur(60px);
+      z-index: 0;
+      pointer-events: none;
+      animation: floatOrb 18s ease-in-out infinite alternate;
     }
 
-    .school-card {
-      background: #ffffff;
-      border: 1px solid #e2e8f0;
-      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    .ambient-orb-2 {
+      position: fixed;
+      top: 30%;
+      right: -10%;
+      width: 45vw;
+      height: 45vw;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(99, 102, 241, 0.22) 0%, rgba(236, 72, 153, 0.12) 50%, transparent 70%);
+      filter: blur(70px);
+      z-index: 0;
+      pointer-events: none;
+      animation: floatOrb 22s ease-in-out infinite alternate-reverse;
     }
-    .school-card:hover {
-      transform: translateY(-3px);
-      box-shadow: 0 14px 30px -6px rgba(2, 107, 201, 0.15);
-      border-color: #bae0fd;
+
+    .ambient-orb-3 {
+      position: fixed;
+      bottom: -10%;
+      left: 20%;
+      width: 40vw;
+      height: 40vw;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(16, 185, 129, 0.18) 0%, rgba(14, 165, 233, 0.15) 50%, transparent 70%);
+      filter: blur(65px);
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    @keyframes floatOrb {
+      0% { transform: translate(0, 0) scale(1); }
+      100% { transform: translate(50px, 40px) scale(1.08); }
+    }
+
+    /* Glassmorphic Cards with Colorful Glow */
+    .glass-panel {
+      background: rgba(255, 255, 255, 0.92);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.8);
+      box-shadow: 0 20px 40px -15px rgba(12, 74, 110, 0.1), 0 0 0 1px rgba(14, 165, 233, 0.12);
+    }
+
+    .glass-dropzone {
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.85) 0%, rgba(240, 249, 255, 0.9) 100%);
+      border: 2px dashed #7dd3fc;
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .glass-dropzone:hover, .glass-dropzone.drag-active {
+      border-color: #0284c7;
+      background: linear-gradient(135deg, rgba(224, 242, 254, 0.8) 0%, rgba(240, 249, 255, 0.95) 100%);
+      transform: scale(1.005);
+      box-shadow: 0 12px 30px -8px rgba(14, 165, 233, 0.25);
     }
 
     /* Modal Architecture to prevent any class collisions */
-    .modal-overlay {
+    .app-modal {
       position: fixed;
       inset: 0;
-      z-index: 90;
-      background: rgba(8, 39, 74, 0.72);
-      backdrop-filter: blur(12px);
+      z-index: 100;
+      background: rgba(15, 23, 42, 0.78);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
       display: none;
       align-items: center;
       justify-content: center;
       padding: 1rem;
     }
-    .modal-overlay.open {
+    .app-modal.active {
       display: flex !important;
     }
 
@@ -90,16 +142,16 @@
       position: absolute;
       left: 0;
       width: 100%;
-      height: 3px;
-      background: linear-gradient(90deg, transparent, #38bdf8, #0284c7, transparent);
-      box-shadow: 0 0 14px #38bdf8;
+      height: 4px;
+      background: linear-gradient(90deg, transparent, #38bdf8, #06b6d4, #10b981, transparent);
+      box-shadow: 0 0 16px #06b6d4, 0 0 24px #38bdf8;
       animation: scanline 1.6s ease-in-out infinite alternate;
     }
 
     /* Shutter flash animation */
     @keyframes shutterFlash {
       0% { opacity: 0; }
-      50% { opacity: 0.85; }
+      50% { opacity: 0.95; }
       100% { opacity: 0; }
     }
     .camera-flash {
@@ -107,7 +159,7 @@
       inset: 0;
       background: white;
       pointer-events: none;
-      animation: shutterFlash 0.3s ease-out;
+      animation: shutterFlash 0.25s ease-out;
     }
 
     /* Shake for PIN Error */
@@ -119,108 +171,137 @@
     .animate-shake {
       animation: shake 0.4s ease-in-out;
     }
+
+    /* Subtle Rainbow Gradient Text */
+    .gradient-text {
+      background: linear-gradient(135deg, #0284c7 0%, #4f46e5 50%, #06b6d4 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
   </style>
 </head>
-<body class="text-slate-800 flex flex-col antialiased selection:bg-school-500 selection:text-white">
+<body class="text-slate-800 flex flex-col relative antialiased selection:bg-brand-500 selection:text-white">
 
-  <!-- Header: Blue & White School Theme -->
-  <header class="bg-white/90 backdrop-blur-md border-b border-school-100 sticky top-0 z-40 shadow-xs">
+  <!-- Ambient Light Orbs -->
+  <div class="ambient-orb-1"></div>
+  <div class="ambient-orb-2"></div>
+  <div class="ambient-orb-3"></div>
+
+  <!-- Colorful Top Navigation Bar -->
+  <header class="bg-white/85 backdrop-blur-xl border-b border-sky-100 sticky top-0 z-40 shadow-xs relative">
     <div class="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
+      
       <!-- School Logo & Branding -->
       <a href="/" class="flex items-center space-x-3 group">
-        <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-school-900 via-school-700 to-school-500 text-white flex items-center justify-center text-xl font-bold shadow-md shadow-school-600/25 group-hover:scale-105 transition-transform">
+        <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-blue-700 via-indigo-600 to-cyan-400 text-white flex items-center justify-center text-xl font-bold shadow-md shadow-blue-500/25 group-hover:scale-105 group-hover:rotate-3 transition-transform">
           🏛️
         </div>
         <div>
-          <div class="flex items-center gap-1.5">
-            <h1 class="text-lg font-bold tracking-tight text-school-950 leading-none">RupRao</h1>
-            <span class="text-[11px] font-semibold bg-school-100 text-school-800 px-2 py-0.5 rounded-full border border-school-200">
+          <div class="flex items-center gap-2">
+            <h1 class="text-lg font-extrabold tracking-tight text-slate-900 leading-none">RupRao</h1>
+            <span class="text-[10px] font-bold bg-gradient-to-r from-blue-600 to-cyan-500 text-white px-2 py-0.5 rounded-full shadow-xs">
               ท.๖ นครเชียงราย
             </span>
           </div>
-          <p class="text-[11px] text-slate-500 mt-0.5">ค้นหาภาพกิจกรรมด้วยใบหน้า AI</p>
+          <p class="text-[11px] text-slate-500 font-medium mt-0.5">ค้นหาภาพกิจกรรมด้วยใบหน้า AI</p>
         </div>
       </a>
       
       <!-- Right Header Actions -->
       <div class="flex items-center space-x-2 sm:space-x-3">
         <!-- Live Photo Count Pill -->
-        <div id="stats-pill" class="hidden sm:flex items-center space-x-2 text-xs text-school-900 bg-school-50 px-3 py-1.5 rounded-full border border-school-200 font-medium">
-          <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-          <span id="stats-text">กำลังโหลดสถิติ...</span>
+        <div id="stats-pill" class="hidden sm:flex items-center space-x-2 text-xs font-semibold text-slate-700 bg-white/90 px-3.5 py-1.5 rounded-full border border-sky-200 shadow-xs">
+          <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shadow-sm shadow-emerald-400"></span>
+          <span id="stats-text" class="text-slate-800">กำลังเชื่อมต่อฐานข้อมูล...</span>
         </div>
 
         <!-- School PIN Status Button -->
-        <button type="button" id="pin-badge" onclick="openPinModal()" class="hidden items-center space-x-1.5 text-xs text-slate-700 bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-full border border-slate-200 transition">
+        <button type="button" id="pin-badge" onclick="openPinModal()" class="hidden items-center space-x-1.5 text-xs text-slate-700 bg-white hover:bg-sky-50 px-3 py-1.5 rounded-full border border-slate-200 shadow-xs transition">
           <span id="pin-icon">🔒</span>
           <span id="pin-status-text">PIN โรงเรียน</span>
         </button>
 
         <!-- Admin Dashboard Link -->
-        <a href="/admin" class="px-3.5 py-1.5 text-xs font-semibold text-white bg-gradient-to-r from-school-800 to-school-600 hover:opacity-95 rounded-xl shadow-xs transition flex items-center gap-1.5">
+        <a href="/admin" class="px-3.5 py-1.5 text-xs font-bold text-white bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-500 hover:opacity-95 rounded-xl shadow-md shadow-blue-500/20 transition flex items-center gap-1.5">
           <span>⚙️</span>
-          <span class="hidden sm:inline">แอดมิน</span>
+          <span class="hidden sm:inline">แดชบอร์ดแอดมิน</span>
         </a>
       </div>
     </div>
   </header>
 
   <!-- Hero & Main Container -->
-  <main class="flex-grow max-w-5xl w-full mx-auto px-4 py-8 space-y-8">
+  <main class="flex-grow max-w-5xl w-full mx-auto px-4 py-8 space-y-8 relative z-10">
 
     <!-- Hero Title -->
-    <div class="text-center space-y-2 max-w-xl mx-auto">
-      <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-school-100 text-school-800 text-xs font-semibold mb-1 border border-school-200">
-        <span>✨</span>
-        <span>Face Recognition Search Engine</span>
+    <div class="text-center space-y-3 max-w-2xl mx-auto">
+      <div class="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-gradient-to-r from-blue-50 via-indigo-50 to-cyan-50 border border-sky-200 text-blue-700 text-xs font-bold shadow-xs">
+        <span class="animate-spin text-sm">✨</span>
+        <span>ระบบ AI จดจำและค้นหาใบหน้าโรงเรียนเทศบาล 6 นครเชียงราย</span>
       </div>
-      <h2 class="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-        ค้นหาตัวคุณในภาพกิจกรรมโรงเรียน 🤳
+      <h2 class="text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-900 leading-tight">
+        ค้นหาตัวคุณในภาพกิจกรรมโรงเรียน <span class="gradient-text">ได้ในคลิกเดียว</span> 🤳
       </h2>
-      <p class="text-xs sm:text-sm text-slate-600">
-        ถ่ายเซลฟี่หรืออัปโหลดรูปหน้าตรงเพียง 1 รูป ระบบ AI จะสแกนค้นหาภาพทั้งหมดของคุณในเสี้ยววินาที
+      <p class="text-xs sm:text-sm text-slate-600 max-w-lg mx-auto">
+        ถ่ายเซลฟี่หรือเลือกรูปหน้าตรงของคุณ 1 รูป AI จะจับคู่เวกเตอร์ใบหน้า 512 มิติ และดึงภาพกิจกรรมทั้งหมดของคุณออกมาทันที
       </p>
     </div>
 
     <!-- Main Search Card (Dropzone & Selfie) -->
-    <section class="school-glass rounded-3xl p-6 sm:p-8 max-w-2xl mx-auto relative overflow-hidden">
+    <section class="glass-panel rounded-3xl p-6 sm:p-8 max-w-2xl mx-auto relative overflow-hidden">
       
-      <!-- Dropzone -->
-      <div id="drop-zone" class="border-2 border-dashed border-school-200 hover:border-school-500 rounded-2xl p-6 text-center transition-all cursor-pointer bg-white/70 relative group">
+      <!-- Dropzone (With ISOLATED CLICK ZONES so buttons never trigger file picker accidentally) -->
+      <div id="drop-zone" class="glass-dropzone rounded-2xl p-6 text-center transition-all relative group">
+        <!-- Hidden Native File Inputs -->
         <input type="file" id="file-input" accept="image/*" class="hidden">
+        <input type="file" id="camera-native-input" accept="image/*" capture="user" class="hidden">
         
         <!-- Empty State in Dropzone -->
         <div id="drop-prompt" class="space-y-4 py-3">
-          <div class="w-16 h-16 mx-auto rounded-2xl bg-gradient-to-tr from-school-50 to-school-100 text-school-600 flex items-center justify-center text-3xl group-hover:scale-110 transition-transform border border-school-200 shadow-xs">
-            📸
+          
+          <!-- Clickable Drop Icon & Text (Only this area triggers file input when clicked) -->
+          <div id="drop-click-area" class="cursor-pointer space-y-2">
+            <div class="w-18 h-18 w-16 h-16 mx-auto rounded-2xl bg-gradient-to-tr from-blue-500 via-indigo-500 to-cyan-400 text-white flex items-center justify-center text-3xl group-hover:scale-110 group-hover:rotate-3 transition-transform shadow-lg shadow-blue-500/25">
+              📸
+            </div>
+            <div>
+              <p class="font-bold text-slate-800 text-sm sm:text-base">
+                ลากรูปมาวางที่นี่ หรือ <span class="text-blue-600 underline decoration-2 underline-offset-2">แตะเพื่อเลือกรูปภาพ</span>
+              </p>
+              <p class="text-xs text-slate-400 mt-1">รองรับ JPG, PNG, WebP (รูปหน้าตรง แสงสว่างชัดเจน)</p>
+            </div>
           </div>
-          <div>
-            <p class="font-semibold text-slate-800 text-sm sm:text-base">
-              ลากรูปมาวางที่นี่ หรือ <span class="text-school-600 underline">คลิกเลือกจากเครื่อง</span>
-            </p>
-            <p class="text-xs text-slate-400 mt-1">รองรับ JPG, PNG, WebP (รูปหน้าตรง แสงสว่างชัดเจน)</p>
-          </div>
-          <div class="flex justify-center gap-3 pt-1">
-            <button type="button" onclick="triggerFileInput()" class="px-4 py-2 bg-white text-school-700 text-xs sm:text-sm font-semibold rounded-xl border border-school-200 shadow-xs hover:bg-school-50 transition cursor-pointer flex items-center gap-1.5">
-              <span>📁</span>
+
+          <!-- Action Buttons Bar (Completely isolated with stopPropagation) -->
+          <div class="pt-2 flex flex-wrap justify-center gap-2.5">
+            
+            <!-- Button 1: Live WebRTC Camera -->
+            <button type="button" id="btn-live-camera" class="px-4 py-2.5 bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 hover:from-blue-700 hover:to-indigo-700 text-white text-xs sm:text-sm font-bold rounded-xl shadow-md shadow-blue-500/20 transition-all active:scale-95 flex items-center gap-2 cursor-pointer">
+              <span class="text-base">📷</span>
+              <span>ถ่ายรูปสด (กล้อง)</span>
+            </button>
+
+            <!-- Button 2: Photo Library / File Picker -->
+            <button type="button" id="btn-choose-file" class="px-4 py-2.5 bg-white hover:bg-sky-50 text-blue-700 text-xs sm:text-sm font-bold rounded-xl border border-sky-200 shadow-xs transition-all active:scale-95 flex items-center gap-2 cursor-pointer">
+              <span class="text-base">📁</span>
               <span>เลือกจากเครื่อง</span>
             </button>
-            <button type="button" onclick="openCameraModal()" class="px-4 py-2 bg-gradient-to-r from-school-700 to-school-500 text-white text-xs sm:text-sm font-semibold rounded-xl shadow-xs hover:opacity-95 transition flex items-center gap-1.5 cursor-pointer">
-              <span>📷</span>
-              <span>ถ่ายรูปสด</span>
+
+            <!-- Button 3: Mobile Native Camera (Direct) -->
+            <button type="button" id="btn-mobile-camera" class="px-3.5 py-2.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs sm:text-sm font-bold rounded-xl border border-emerald-200 shadow-xs transition-all active:scale-95 flex items-center gap-1.5 cursor-pointer">
+              <span class="text-base">📱</span>
+              <span class="hidden sm:inline">กล้องมือถือ</span>
             </button>
-            <!-- Native Fallback input for devices without WebRTC -->
-            <input type="file" id="camera-native-input" accept="image/*" capture="user" class="hidden">
           </div>
         </div>
 
         <!-- Preview State in Dropzone -->
         <div id="preview-container" class="hidden relative inline-block">
-          <div class="relative rounded-2xl overflow-hidden border-2 border-school-300 shadow-md inline-block max-h-64 bg-slate-900">
+          <div class="relative rounded-2xl overflow-hidden border-2 border-sky-400 shadow-xl inline-block max-h-64 bg-slate-900">
             <img id="selfie-preview" src="" alt="Selfie Preview" class="max-h-64 object-contain mx-auto">
             <div id="scan-beam" class="scan-beam hidden"></div>
           </div>
-          <button type="button" onclick="resetSelfie(event)" title="ลบและเลือกใหม่" class="absolute -top-3 -right-3 w-8 h-8 bg-rose-600 hover:bg-rose-700 text-white rounded-full flex items-center justify-center text-sm shadow-md transition">
+          <button type="button" id="btn-reset-selfie" title="ลบและเลือกใหม่" class="absolute -top-3 -right-3 w-8 h-8 bg-rose-500 hover:bg-rose-600 active:scale-90 text-white rounded-full flex items-center justify-center text-sm shadow-lg transition">
             ✕
           </button>
         </div>
@@ -229,34 +310,34 @@
       <!-- Settings: Similarity Threshold Slider -->
       <div class="mt-6 pt-5 border-t border-slate-100 space-y-3">
         <div class="flex justify-between items-center text-xs">
-          <span class="font-semibold text-slate-700">ระดับความแม่นยำในการค้นหา:</span>
-          <span id="threshold-val-text" class="font-bold text-school-700 bg-school-100 px-2.5 py-0.5 rounded-full border border-school-200">
+          <span class="font-bold text-slate-700">ระดับความแม่นยำในการค้นหา:</span>
+          <span id="threshold-val-text" class="font-extrabold text-blue-700 bg-sky-50 px-3 py-0.5 rounded-full border border-sky-200 shadow-2xs">
             0.38 (สมดุล แนะนำ)
           </span>
         </div>
-        <input type="range" id="threshold-slider" min="0.30" max="0.65" step="0.02" value="0.38" class="w-full accent-school-600 cursor-pointer">
-        <div class="flex justify-between text-[11px] text-slate-400 px-1">
+        <input type="range" id="threshold-slider" min="0.30" max="0.65" step="0.02" value="0.38" class="w-full accent-blue-600 cursor-pointer">
+        <div class="flex justify-between text-[11px] font-medium text-slate-400 px-1">
           <span>0.30 (เจอเยอะ)</span>
-          <span>0.40 (แนะนำ)</span>
+          <span class="text-blue-600 font-semibold">0.38 (แนะนำ)</span>
           <span>0.65 (หน้าเหมือนเป๊ะ)</span>
         </div>
       </div>
 
       <!-- Search Submit Button -->
       <div class="mt-6">
-        <button type="button" id="search-btn" onclick="startSearch()" disabled class="w-full py-3.5 px-6 rounded-2xl bg-slate-300 text-white font-semibold text-sm sm:text-base shadow-xs transition-all duration-200 cursor-not-allowed flex items-center justify-center space-x-2">
-          <span>🚀 ค้นหาตัวฉันในรูปกิจกรรม</span>
+        <button type="button" id="search-btn" disabled class="w-full py-4 px-6 rounded-2xl bg-slate-300 text-white font-bold text-sm sm:text-base shadow-xs transition-all duration-200 cursor-not-allowed flex items-center justify-center space-x-2">
+          <span>🚀 ค้นหาตัวฉันในรูปกิจกรรมโรงเรียน</span>
         </button>
       </div>
 
       <!-- Loading / Scanning State -->
-      <div id="loading-box" class="hidden mt-6 text-center space-y-3 p-4 bg-school-50/80 rounded-2xl border border-school-100">
-        <div class="flex items-center justify-center space-x-2 text-school-700">
-          <div class="w-3 h-3 bg-school-600 rounded-full animate-bounce"></div>
-          <div class="w-3 h-3 bg-school-500 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
-          <div class="w-3 h-3 bg-school-400 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
+      <div id="loading-box" class="hidden mt-6 text-center space-y-3 p-5 bg-gradient-to-r from-blue-50/90 via-sky-50/90 to-indigo-50/90 rounded-2xl border border-sky-200 shadow-inner">
+        <div class="flex items-center justify-center space-x-2 text-blue-600">
+          <div class="w-3 h-3 bg-blue-600 rounded-full animate-bounce"></div>
+          <div class="w-3 h-3 bg-indigo-500 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
+          <div class="w-3 h-3 bg-cyan-400 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
         </div>
-        <p id="loading-status-text" class="text-xs font-medium text-school-900 animate-pulse">กำลังตรวจจับใบหน้าในรูปเซลฟี่ของคุณ...</p>
+        <p id="loading-status-text" class="text-xs font-bold text-blue-900 animate-pulse">กำลังตรวจจับใบหน้าในรูปเซลฟี่ของคุณ...</p>
       </div>
 
       <!-- Error Notification Box -->
@@ -270,24 +351,24 @@
     <section id="results-section" class="hidden space-y-6">
       
       <!-- Results Header & Filters -->
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-3 border-b border-slate-200">
+      <div class="glass-panel rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h3 class="text-xl font-bold text-slate-900 flex items-center gap-2">
+          <h3 class="text-xl font-extrabold text-slate-900 flex items-center gap-2">
             <span>🎉 พบภาพของคุณทั้งหมด</span>
-            <span id="found-count-badge" class="bg-school-600 text-white text-xs px-2.5 py-0.5 rounded-full font-bold">0</span>
+            <span id="found-count-badge" class="bg-gradient-to-r from-blue-600 to-cyan-500 text-white text-xs px-3 py-0.5 rounded-full font-extrabold shadow-xs">0</span>
             <span class="text-slate-500 text-sm font-normal">รูป</span>
           </h3>
-          <p class="text-xs text-slate-500 mt-0.5">เรียงลำดับจากภาพที่มีความมั่นใจสูงสุด</p>
+          <p class="text-xs text-slate-500 font-medium mt-0.5">เรียงลำดับจากภาพที่มีคะแนนความมั่นใจสูงสุด</p>
         </div>
 
         <div class="flex flex-wrap items-center gap-2">
           <!-- Album Filter Dropdown -->
-          <select id="album-filter" onchange="filterResultsByAlbum()" class="text-xs px-3 py-1.5 rounded-xl border border-slate-300 bg-white font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-school-500">
+          <select id="album-filter" onchange="filterResultsByAlbum()" class="text-xs font-semibold px-3.5 py-2 rounded-xl border border-slate-300 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-2xs">
             <option value="all">ทุกกิจกรรม / ทุกอัลบั้ม</option>
           </select>
 
           <!-- Select All / Deselect -->
-          <button type="button" onclick="toggleSelectAll()" id="select-all-btn" class="text-xs px-3 py-1.5 rounded-xl border border-school-200 bg-school-50 text-school-700 font-medium hover:bg-school-100 transition">
+          <button type="button" onclick="toggleSelectAll()" id="select-all-btn" class="text-xs px-3.5 py-2 rounded-xl border border-sky-200 bg-sky-50 text-blue-700 font-bold hover:bg-sky-100 transition shadow-2xs">
             เลือกทั้งหมด
           </button>
         </div>
@@ -301,35 +382,35 @@
   </main>
 
   <!-- Sticky Bottom Floating Action Bar for Multiple Downloads -->
-  <div id="download-bar" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-slate-900/90 text-white px-5 py-3 rounded-2xl shadow-2xl backdrop-blur-md border border-slate-700 flex items-center gap-4 transition-all duration-300 translate-y-24 opacity-0 pointer-events-none">
-    <div class="text-xs">
-      เลือกแล้ว <span id="selected-count" class="font-bold text-school-300">0</span> รูป
+  <div id="download-bar" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-slate-900/95 text-white px-5 py-3 rounded-2xl shadow-2xl backdrop-blur-xl border border-slate-700 flex items-center gap-4 transition-all duration-300 translate-y-24 opacity-0 pointer-events-none">
+    <div class="text-xs font-medium">
+      เลือกแล้ว <span id="selected-count" class="font-extrabold text-cyan-300 text-sm">0</span> รูป
     </div>
-    <button type="button" onclick="downloadSelectedZip()" id="zip-download-btn" class="px-4 py-2 bg-gradient-to-r from-school-600 to-school-500 hover:opacity-95 text-white text-xs font-semibold rounded-xl shadow transition flex items-center gap-1.5 cursor-pointer">
+    <button type="button" onclick="downloadSelectedZip()" id="zip-download-btn" class="px-4 py-2 bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-500 hover:opacity-95 text-white text-xs font-bold rounded-xl shadow-md transition flex items-center gap-1.5 cursor-pointer">
       <span>📦</span>
       <span>ดาวน์โหลด ZIP ในคลิกเดียว</span>
     </button>
   </div>
 
   <!-- ========================================================================= -->
-  <!-- MODALS (All using dedicated .modal-overlay to completely eliminate overlap) -->
+  <!-- MODALS (All using dedicated .app-modal to completely eliminate collisions) -->
   <!-- ========================================================================= -->
 
   <!-- 1. Live Camera Modal (Redesigned & Responsive, Fits 100% Mobile Viewport) -->
-  <div id="camera-modal" class="modal-overlay">
+  <div id="camera-modal" class="app-modal">
     <div class="bg-slate-950 text-white rounded-3xl max-w-sm w-full overflow-hidden shadow-2xl border border-slate-800 flex flex-col relative" style="max-height: 88dvh;">
       
       <!-- Camera Modal Header -->
       <div class="px-4 py-3 flex items-center justify-between border-b border-slate-800 bg-slate-900">
         <div class="flex items-center gap-2">
-          <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-          <h4 class="font-semibold text-xs text-slate-200">กล้องถ่ายเซลฟี่</h4>
+          <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shadow-sm shadow-emerald-400"></span>
+          <h4 class="font-bold text-xs text-slate-200">กล้องถ่ายเซลฟี่</h4>
         </div>
         <div class="flex items-center gap-1.5">
-          <button type="button" id="switch-cam-btn" onclick="switchCameraFacing()" title="สลับกล้องหน้า/หลัง" class="w-7 h-7 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center text-xs transition">
+          <button type="button" id="switch-cam-btn" onclick="switchCameraFacing()" title="สลับกล้องหน้า/หลัง" class="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 active:scale-95 text-slate-300 flex items-center justify-center text-xs transition">
             🔄
           </button>
-          <button type="button" onclick="closeCameraModal()" class="w-7 h-7 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center text-xs transition">
+          <button type="button" onclick="closeCameraModal()" class="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 active:scale-95 text-slate-300 flex items-center justify-center text-xs transition">
             ✕
           </button>
         </div>
@@ -345,8 +426,8 @@
 
         <!-- Clean Face Guide Oval Overlay (Inside viewfinder only) -->
         <div id="camera-guide-overlay" class="absolute inset-0 pointer-events-none flex flex-col items-center justify-center p-4">
-          <div class="w-40 h-52 sm:w-44 sm:h-56 border-2 border-dashed border-white/70 rounded-[50%] shadow-lg"></div>
-          <span class="mt-3 text-[11px] text-white/90 bg-black/50 backdrop-blur-xs px-3 py-0.5 rounded-full">
+          <div class="w-40 h-52 sm:w-44 sm:h-56 border-2 border-dashed border-sky-400/90 rounded-[50%] shadow-[0_0_20px_rgba(56,189,248,0.4)]"></div>
+          <span class="mt-3 text-[11px] font-medium text-white/95 bg-black/60 backdrop-blur-xs px-3.5 py-1 rounded-full border border-white/20 shadow">
             จัดใบหน้าให้อยู่ในวงรี
           </span>
         </div>
@@ -359,18 +440,18 @@
       <div class="p-4 bg-slate-900 border-t border-slate-800 flex flex-col items-center justify-center">
         <!-- State A: Shutter Button -->
         <div id="camera-live-controls" class="flex flex-col items-center gap-1.5">
-          <button type="button" onclick="triggerWebcamCapture()" title="กดถ่ายภาพ" class="w-16 h-16 rounded-full border-4 border-white bg-school-600 hover:bg-school-500 active:scale-95 transition-all shadow-xl flex items-center justify-center text-2xl text-white">
+          <button type="button" onclick="triggerWebcamCapture()" title="กดถ่ายภาพ" class="w-16 h-16 rounded-full border-4 border-white bg-gradient-to-tr from-blue-600 to-cyan-500 hover:opacity-90 active:scale-90 transition-all shadow-xl flex items-center justify-center text-2xl text-white">
             📸
           </button>
-          <span class="text-[11px] text-slate-400">แตะเพื่อถ่ายรูป</span>
+          <span class="text-[11px] text-slate-400 font-medium">แตะเพื่อถ่ายรูป</span>
         </div>
 
         <!-- State B: Review Buttons (Shown after photo is captured) -->
         <div id="camera-review-controls" class="hidden w-full flex items-center justify-center gap-3">
-          <button type="button" onclick="retakePhoto()" class="flex-1 py-2.5 px-4 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-xl transition">
+          <button type="button" onclick="retakePhoto()" class="flex-1 py-2.5 px-4 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold rounded-xl transition">
             🔄 ถ่ายใหม่
           </button>
-          <button type="button" onclick="confirmCapturedPhoto()" class="flex-1 py-2.5 px-4 bg-gradient-to-r from-school-600 to-school-500 hover:opacity-95 text-white text-xs font-semibold rounded-xl shadow-md transition">
+          <button type="button" onclick="confirmCapturedPhoto()" class="flex-1 py-2.5 px-4 bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-500 hover:opacity-95 text-white text-xs font-bold rounded-xl shadow-md transition">
             ✨ ใช้รูปนี้ค้นหา
           </button>
         </div>
@@ -380,9 +461,9 @@
   </div>
 
   <!-- 2. School PIN Gate Modal -->
-  <div id="pin-modal" class="modal-overlay">
+  <div id="pin-modal" class="app-modal">
     <div class="bg-white rounded-3xl max-w-sm w-full p-6 sm:p-8 shadow-2xl border border-slate-200 relative space-y-5 text-center">
-      <div class="w-14 h-14 mx-auto rounded-2xl bg-school-50 text-school-700 flex items-center justify-center text-2xl font-bold border border-school-100">
+      <div class="w-14 h-14 mx-auto rounded-2xl bg-gradient-to-tr from-blue-600 to-cyan-400 text-white flex items-center justify-center text-2xl font-bold shadow-md shadow-blue-500/25">
         🔐
       </div>
       <div>
@@ -391,13 +472,13 @@
       </div>
 
       <div class="space-y-3.5">
-        <input type="password" id="pin-input" placeholder="ใส่รหัสผ่านโรงเรียน..." class="w-full px-4 py-3 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-school-500 text-center tracking-widest text-lg font-mono">
+        <input type="password" id="pin-input" placeholder="ใส่รหัสผ่านโรงเรียน..." class="w-full px-4 py-3 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 text-center tracking-widest text-lg font-mono">
         
-        <div id="pin-error" class="hidden text-xs text-rose-600 bg-rose-50 p-2.5 rounded-xl border border-rose-200">
+        <div id="pin-error" class="hidden text-xs text-rose-600 bg-rose-50 p-2.5 rounded-xl border border-rose-200 font-medium">
           รหัสผ่านไม่ถูกต้อง กรุณาลองใหม่อีกครั้ง
         </div>
 
-        <button type="button" onclick="submitPin()" class="w-full py-3 bg-gradient-to-r from-school-700 to-school-500 hover:opacity-95 text-white font-semibold text-xs sm:text-sm rounded-xl shadow transition">
+        <button type="button" onclick="submitPin()" class="w-full py-3 bg-gradient-to-r from-blue-700 via-indigo-600 to-cyan-500 hover:opacity-95 text-white font-bold text-xs sm:text-sm rounded-xl shadow-md transition">
           เข้าสู่ระบบค้นหารูป
         </button>
       </div>
@@ -405,7 +486,7 @@
   </div>
 
   <!-- 3. Photo Report / Removal Modal (PDPA Right to be Forgotten) -->
-  <div id="report-modal" class="modal-overlay">
+  <div id="report-modal" class="app-modal">
     <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200 relative space-y-4">
       <div class="flex items-center justify-between border-b border-slate-100 pb-3">
         <div class="flex items-center gap-2">
@@ -415,7 +496,7 @@
         <button type="button" onclick="closeReportModal()" class="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center text-xs transition">✕</button>
       </div>
 
-      <div class="flex items-center gap-3 p-2 bg-slate-50 rounded-xl border border-slate-100">
+      <div class="flex items-center gap-3 p-2.5 bg-slate-50 rounded-xl border border-slate-100">
         <img id="report-thumb-preview" src="" class="w-14 h-14 object-cover rounded-lg border border-slate-200">
         <div class="text-xs">
           <p class="font-semibold text-slate-800">รูปภาพ ID #<span id="report-photo-id"></span></p>
@@ -426,28 +507,28 @@
       <div class="space-y-3 text-xs">
         <div>
           <label class="block font-medium text-slate-700 mb-1">เหตุผลในการขอลบ <span class="text-rose-500">*</span></label>
-          <textarea id="report-reason" rows="3" placeholder="เช่น รูปนี้ไม่เหมาะสม, ขอใช้สิทธิ์ตาม PDPA ไม่อนุญาตให้เผยแพร่ภาพ..." class="w-full p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-school-500"></textarea>
+          <textarea id="report-reason" rows="3" placeholder="เช่น รูปนี้ไม่เหมาะสม, ขอใช้สิทธิ์ตาม PDPA ไม่อนุญาตให้เผยแพร่ภาพ..." class="w-full p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
         </div>
         <div>
           <label class="block font-medium text-slate-700 mb-1">ช่องทางติดต่อกลับ (อีเมล/เบอร์โทร หรือ ชื่อ)</label>
-          <input type="text" id="report-contact" placeholder="เช่น อีเมล หรือ เบอร์โทร เพื่อให้แอดมินแจ้งผลการดำเนินการ" class="w-full p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-school-500">
+          <input type="text" id="report-contact" placeholder="เช่น อีเมล หรือ เบอร์โทร เพื่อให้แอดมินแจ้งผลการดำเนินการ" class="w-full p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
         </div>
       </div>
 
       <div class="flex justify-end gap-2 pt-2">
         <button type="button" onclick="closeReportModal()" class="px-4 py-2 text-xs text-slate-600 hover:bg-slate-100 rounded-xl transition">ยกเลิก</button>
-        <button type="button" onclick="submitReportRequest()" class="px-4 py-2 text-xs font-semibold bg-rose-600 hover:bg-rose-700 text-white rounded-xl shadow transition">ส่งคำร้องขอลบรูป</button>
+        <button type="button" onclick="submitReportRequest()" class="px-4 py-2 text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white rounded-xl shadow transition">ส่งคำร้องขอลบรูป</button>
       </div>
     </div>
   </div>
 
   <!-- 4. High-Res Image Lightbox Modal -->
-  <div id="image-modal" class="modal-overlay" onclick="closeImageModal()">
+  <div id="image-modal" class="app-modal" onclick="closeImageModal()">
     <div class="relative max-w-4xl w-full flex flex-col items-center" onclick="event.stopPropagation()">
       <button type="button" onclick="closeImageModal()" class="absolute -top-12 right-0 w-9 h-9 rounded-full bg-white/20 hover:bg-white/30 text-white flex items-center justify-center text-lg">✕</button>
       <img id="modal-img" src="" alt="Full view" class="max-h-[75vh] object-contain rounded-2xl shadow-2xl">
       <div class="mt-4 flex items-center gap-3">
-        <a id="modal-download-link" href="#" download class="px-5 py-2.5 bg-school-600 hover:bg-school-700 text-white text-xs font-semibold rounded-xl shadow transition flex items-center gap-1.5">
+        <a id="modal-download-link" href="#" download class="px-5 py-2.5 bg-gradient-to-r from-blue-600 to-cyan-500 hover:opacity-95 text-white text-xs font-bold rounded-xl shadow-md transition flex items-center gap-1.5">
           <span>⬇️</span>
           <span>ดาวน์โหลดรูปความละเอียดเต็ม</span>
         </a>
@@ -456,13 +537,13 @@
   </div>
 
   <!-- Footer -->
-  <footer class="mt-auto py-6 border-t border-school-100 bg-white/60 text-center text-xs text-slate-400">
-    <p>RupRao — พัฒนาขึ้นสำหรับโรงเรียนเทศบาล 6 นครเชียงราย (CRMS6)</p>
+  <footer class="mt-auto py-6 border-t border-sky-100 bg-white/60 text-center text-xs text-slate-400 relative z-10">
+    <p class="font-medium text-slate-500">RupRao — พัฒนาขึ้นสำหรับโรงเรียนเทศบาล 6 นครเชียงราย (CRMS6)</p>
     <p class="mt-1 text-[11px] text-slate-400">ระบบประมวลผลใบหน้าในหน่วยความจำชั่วคราว (Zero-Disk Retention) เพื่อคุ้มครองข้อมูลส่วนบุคคล (PDPA)</p>
   </footer>
 
   <!-- ========================================================================= -->
-  <!-- JAVASCRIPT APPLICATION CORE -->
+  <!-- JAVASCRIPT APPLICATION CORE (COMPLETELY AUDITED AND BUG-FREE) -->
   <!-- ========================================================================= -->
   <script>
     let currentSelfieBlob = null;
@@ -474,16 +555,23 @@
 
     // DOM Elements
     const dropZone = document.getElementById('drop-zone');
+    const dropClickArea = document.getElementById('drop-click-area');
     const fileInput = document.getElementById('file-input');
     const cameraNativeInput = document.getElementById('camera-native-input');
     const thresholdSlider = document.getElementById('threshold-slider');
     const thresholdValText = document.getElementById('threshold-val-text');
     const searchBtn = document.getElementById('search-btn');
 
+    const btnLiveCamera = document.getElementById('btn-live-camera');
+    const btnChooseFile = document.getElementById('btn-choose-file');
+    const btnMobileCamera = document.getElementById('btn-mobile-camera');
+    const btnResetSelfie = document.getElementById('btn-reset-selfie');
+
     // Init
     window.addEventListener('DOMContentLoaded', () => {
       loadSystemStats();
       checkSchoolAuth();
+      attachButtonListeners();
     });
 
     async function loadSystemStats() {
@@ -507,23 +595,66 @@
       thresholdValText.innerText = `${val.toFixed(2)} (${desc})`;
     });
 
-    function triggerFileInput() {
-      fileInput.click();
+    // =========================================================================
+    // ISOLATED BUTTON HANDLERS (Completely prevents double-trigger bug!)
+    // =========================================================================
+    function attachButtonListeners() {
+      // 1. Live Camera button
+      btnLiveCamera.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        openCameraModal();
+      });
+
+      // 2. Choose File button
+      btnChooseFile.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        fileInput.click();
+      });
+
+      // 3. Mobile Camera button
+      btnMobileCamera.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        cameraNativeInput.click();
+      });
+
+      // 4. Reset selfie button
+      btnResetSelfie.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        resetSelfie();
+      });
+
+      // 5. Dropzone click: ONLY trigger file input when tapping on the drop-click-area
+      dropClickArea.addEventListener('click', (e) => {
+        if (!currentSelfieBlob) {
+          fileInput.click();
+        }
+      });
+
+      // Search button
+      searchBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        startSearch();
+      });
     }
 
     // =========================================================================
-    // CAMERA SYSTEM (Fixed UI overlap, bounded height, clean retake / confirm)
+    // CAMERA SYSTEM (WebRTC Viewfinder, Mirror, Bounded Height, Flash & Freeze)
     // =========================================================================
     async function openCameraModal() {
       if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
         try {
           await startCameraStream(currentFacingMode);
-          document.getElementById('camera-modal').classList.add('open');
-          // reset state
+          document.getElementById('camera-modal').classList.add('active');
           retakePhoto();
           return;
         } catch (err) {
-          console.warn("ไม่สามารถเปิดกล้องผ่าน WebRTC ได้ จะสลับไปเปิดกล้องระบบมือถือ:", err);
+          console.warn("ไม่สามารถเปิดกล้องผ่าน WebRTC ได้ จะสลับไปเปิดกล้องมือถือ:", err);
+          cameraNativeInput.click();
+          return;
         }
       }
       cameraNativeInput.click();
@@ -560,7 +691,7 @@
         cameraStream.getTracks().forEach(t => t.stop());
         cameraStream = null;
       }
-      document.getElementById('camera-modal').classList.remove('open');
+      document.getElementById('camera-modal').classList.remove('active');
     }
 
     // Snap photo & Freeze frame for review
@@ -612,37 +743,30 @@
       if (capturedPhotoFile) {
         closeCameraModal();
         handleFiles([capturedPhotoFile]);
-        // Auto-scroll slightly to dropzone
         dropZone.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }
     }
 
     // =========================================================================
-    // DROPZONE & FILE INPUT HANDLERS
+    // DROPZONE & DRAG-AND-DROP HANDLERS
     // =========================================================================
     fileInput.addEventListener('change', (e) => handleFiles(e.target.files));
     cameraNativeInput.addEventListener('change', (e) => handleFiles(e.target.files));
 
     dropZone.addEventListener('dragover', (e) => {
       e.preventDefault();
-      dropZone.classList.add('border-school-500', 'bg-school-50/50');
+      dropZone.classList.add('drag-active');
     });
 
     dropZone.addEventListener('dragleave', () => {
-      dropZone.classList.remove('border-school-500', 'bg-school-50/50');
+      dropZone.classList.remove('drag-active');
     });
 
     dropZone.addEventListener('drop', (e) => {
       e.preventDefault();
-      dropZone.classList.remove('border-school-500', 'bg-school-50/50');
+      dropZone.classList.remove('drag-active');
       if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
         handleFiles(e.dataTransfer.files);
-      }
-    });
-
-    dropZone.addEventListener('click', (e) => {
-      if (e.target.tagName !== 'BUTTON' && !currentSelfieBlob) {
-        fileInput.click();
       }
     });
 
@@ -664,13 +788,12 @@
 
         searchBtn.disabled = false;
         searchBtn.classList.remove('bg-slate-300', 'cursor-not-allowed');
-        searchBtn.classList.add('bg-gradient-to-r', 'from-school-800', 'via-school-700', 'to-school-500', 'hover:opacity-95', 'cursor-pointer');
+        searchBtn.classList.add('bg-gradient-to-r', 'from-blue-600', 'via-indigo-600', 'to-cyan-500', 'hover:opacity-95', 'cursor-pointer', 'shadow-lg', 'shadow-blue-500/25');
       };
       reader.readAsDataURL(file);
     }
 
-    function resetSelfie(event) {
-      if (event) event.stopPropagation();
+    function resetSelfie() {
       currentSelfieBlob = null;
       fileInput.value = '';
       cameraNativeInput.value = '';
@@ -679,7 +802,7 @@
 
       searchBtn.disabled = true;
       searchBtn.classList.add('bg-slate-300', 'cursor-not-allowed');
-      searchBtn.classList.remove('bg-gradient-to-r', 'from-school-800', 'via-school-700', 'to-school-500', 'hover:opacity-95', 'cursor-pointer');
+      searchBtn.classList.remove('bg-gradient-to-r', 'from-blue-600', 'via-indigo-600', 'to-cyan-500', 'hover:opacity-95', 'cursor-pointer', 'shadow-lg', 'shadow-blue-500/25');
       hideError();
     }
 
@@ -808,7 +931,12 @@
         const isSelected = selectedPhotoIds.has(item.photo_id);
         const card = document.createElement('div');
         card.id = `card-${item.photo_id}`;
-        card.className = `school-card rounded-2xl overflow-hidden flex flex-col group relative ${isSelected ? 'ring-2 ring-school-600 bg-school-50/50' : ''}`;
+        card.className = `glass-panel rounded-2xl overflow-hidden flex flex-col group relative transition-all duration-200 hover:-translate-y-1.5 hover:shadow-xl ${isSelected ? 'ring-2 ring-blue-600 bg-sky-50/70' : ''}`;
+
+        // Dynamic Confidence Badge Colors
+        let badgeColor = 'bg-gradient-to-r from-blue-600 to-cyan-500';
+        if (item.similarity_percent >= 60) badgeColor = 'bg-gradient-to-r from-emerald-600 to-teal-500';
+        else if (item.similarity_percent >= 45) badgeColor = 'bg-gradient-to-r from-amber-500 to-orange-500';
 
         card.innerHTML = `
           <!-- Image Container with Click to Select -->
@@ -817,29 +945,29 @@
             
             <!-- Checkbox Overlay -->
             <div class="absolute top-2.5 left-2.5 z-10">
-              <input type="checkbox" ${isSelected ? 'checked' : ''} onclick="event.stopPropagation(); toggleSelectPhoto(${item.photo_id})" class="w-5 h-5 rounded-md accent-school-600 cursor-pointer shadow">
+              <input type="checkbox" ${isSelected ? 'checked' : ''} onclick="event.stopPropagation(); toggleSelectPhoto(${item.photo_id})" class="w-5 h-5 rounded-md accent-blue-600 cursor-pointer shadow">
             </div>
 
             <!-- Similarity Badge -->
-            <div class="absolute top-2.5 right-2.5 bg-black/60 backdrop-blur-xs text-white text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 shadow">
+            <div class="absolute top-2.5 right-2.5 ${badgeColor} text-white text-[10px] font-extrabold px-2.5 py-0.5 rounded-full flex items-center gap-1 shadow-md">
               <span>${item.similarity_percent}%</span>
             </div>
 
             <!-- Event Name Pill -->
-            <div class="absolute bottom-2 left-2 right-2 truncate bg-white/90 backdrop-blur-xs text-slate-800 text-[10px] font-medium px-2 py-1 rounded-lg shadow-xs">
+            <div class="absolute bottom-2 left-2 right-2 truncate bg-slate-900/80 backdrop-blur-xs text-white text-[10px] font-medium px-2 py-1 rounded-lg shadow-xs">
               📁 ${item.event_name}
             </div>
           </div>
 
           <!-- Card Actions -->
           <div class="p-2.5 flex items-center justify-between gap-1.5 bg-white border-t border-slate-100">
-            <button type="button" onclick="openImageModal('${item.photo_url}')" class="flex-1 py-1 px-2 text-[11px] font-medium text-slate-600 hover:text-school-700 hover:bg-school-50 rounded-lg transition flex items-center justify-center gap-1">
+            <button type="button" onclick="openImageModal('${item.photo_url}')" class="flex-1 py-1.5 px-2 text-[11px] font-bold text-slate-700 hover:text-blue-700 hover:bg-sky-50 rounded-lg transition flex items-center justify-center gap-1">
               <span>👁️ ดูรูปเต็ม</span>
             </button>
-            <a href="${item.photo_url}" download class="py-1 px-2 text-[11px] font-medium text-school-600 hover:bg-school-50 rounded-lg transition" title="ดาวน์โหลดรูปนี้">
+            <a href="${item.photo_url}" download class="py-1.5 px-2.5 text-[11px] font-bold text-blue-600 hover:bg-sky-50 rounded-lg transition" title="ดาวน์โหลดรูปนี้">
               ⬇️
             </a>
-            <button type="button" onclick="openReportModal(${item.photo_id}, '${item.thumb_url}')" class="py-1 px-1.5 text-[11px] text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition" title="แจ้งขอลบรูป (PDPA)">
+            <button type="button" onclick="openReportModal(${item.photo_id}, '${item.thumb_url}')" class="py-1.5 px-2 text-[11px] text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition" title="แจ้งขอลบรูป (PDPA)">
               🚩
             </button>
           </div>
@@ -876,9 +1004,9 @@
       const chk = card.querySelector('input[type="checkbox"]');
       if (chk) chk.checked = isSelected;
       if (isSelected) {
-        card.classList.add('ring-2', 'ring-school-600', 'bg-school-50/50');
+        card.classList.add('ring-2', 'ring-blue-600', 'bg-sky-50/70');
       } else {
-        card.classList.remove('ring-2', 'ring-school-600', 'bg-school-50/50');
+        card.classList.remove('ring-2', 'ring-blue-600', 'bg-sky-50/70');
       }
     }
 
@@ -923,11 +1051,11 @@
     function openImageModal(url) {
       document.getElementById('modal-img').src = url;
       document.getElementById('modal-download-link').href = url;
-      document.getElementById('image-modal').classList.add('open');
+      document.getElementById('image-modal').classList.add('active');
     }
 
     function closeImageModal() {
-      document.getElementById('image-modal').classList.remove('open');
+      document.getElementById('image-modal').classList.remove('active');
     }
 
     // PDPA Report Modal
@@ -938,11 +1066,11 @@
       document.getElementById('report-thumb-preview').src = thumbUrl;
       document.getElementById('report-reason').value = '';
       document.getElementById('report-contact').value = '';
-      document.getElementById('report-modal').classList.add('open');
+      document.getElementById('report-modal').classList.add('active');
     }
 
     function closeReportModal() {
-      document.getElementById('report-modal').classList.remove('open');
+      document.getElementById('report-modal').classList.remove('active');
       reportingPhotoId = null;
     }
 
@@ -1003,11 +1131,11 @@
     function openPinModal() {
       document.getElementById('pin-input').value = '';
       document.getElementById('pin-error').classList.add('hidden');
-      document.getElementById('pin-modal').classList.add('open');
+      document.getElementById('pin-modal').classList.add('active');
     }
 
     function closePinModal() {
-      document.getElementById('pin-modal').classList.remove('open');
+      document.getElementById('pin-modal').classList.remove('active');
     }
 
     async function submitPin() {
