@@ -36,23 +36,36 @@ def get_gallery_dl_cmd():
 
 
 def resolve_fb_url(url: str) -> str:
-    """แปลง share link (เช่น /share/p/...) เป็น URL โพสต์จริงบน Facebook"""
+    """ตาม redirect ของ share link จนได้ URL โพสต์จริง — ตามได้หลายชั้น
+    (บทเรียน: share link มี redirect ซ้อนกันหลายที เช่น web->www->โพสต์จริง
+    ถ้าหยุดตามชั้นเดียวจะได้ลิงก์กลางทางที่ใช้ไม่ได้)"""
     url = url.strip()
-    if "/share/" in url:
-        mobile_url = re.sub(r"https?://(www\.)?facebook\.com", "https://m.facebook.com", url)
+    if "/share/" not in url:
+        return url
+    # รองรับทุกซับโดเมน: www. / web. / m. แล้วปัดไปที่ m.facebook.com เพื่อขอ redirect แบบเบา
+    current = re.sub(r"https?://(?:www\.|web\.|m\.)?facebook\.com", "https://m.facebook.com", url)
+    ua = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)"
+    for _ in range(5):   # ตาม redirect ได้สูงสุด 5 ชั้น
         try:
-            cmd = ["curl", "-s", "-i", "-A", "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)", mobile_url]
-            res = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
-            for line in res.stdout.splitlines():
-                if line.lower().startswith("location:"):
-                    loc = line.split(":", 1)[1].strip()
-                    clean_url = loc.split("?")[0]
-                    clean_url = clean_url.replace("m.facebook.com", "www.facebook.com")
-                    print(f"🔗 แก้ไข Share URL เป็น URL จริง: {clean_url}")
-                    return clean_url
+            res = subprocess.run(["curl", "-s", "-i", "-A", ua, current],
+                                 capture_output=True, text=True, timeout=15)
         except Exception as e:
-            print(f"⚠️ เกิดข้อผิดพลาดขณะ resolve share URL: {e}")
-    return url
+            print(f"⚠️ ตาม redirect ขัดข้อง: {e}")
+            break
+        loc = None
+        for line in res.stdout.splitlines():
+            if line.lower().startswith("location:"):
+                loc = line.split(":", 1)[1].strip()
+                break
+        if not loc:
+            break   # ชั้นนี้ไม่มี redirect แล้ว = ถือว่าเป็นปลายทาง
+        if loc.startswith("/"):
+            loc = "https://m.facebook.com" + loc
+        current = loc.replace("m.facebook.com", "www.facebook.com")
+        if "/share/" not in current:
+            break   # พ้นโลกของ share link แล้ว = ถึงโพสต์จริง
+    print(f"🔗 Share URL แปลงเป็น: {current}")
+    return current
 
 
 def main():
@@ -68,8 +81,9 @@ def main():
     target_url = resolve_fb_url(args.url)
     
     # ถ้าเป็นหน้าเพจหลัก (ไม่ใช่โพสต์, อัลบั้ม, หรือรูปภาพ) ให้ชี้ไปที่ /photos เพื่อดึงภาพกิจกรรม
-    post_indicators = ["/posts/", "/photo", "/photos", "/media", "/albums", "/permalink.php", "set="]
-    if not any(k in target_url for k in post_indicators):
+    # ⚠️ ห้ามต่อ /photos ใส่ share link ที่ resolve ไม่สำเร็จ — จะกลายเป็น URL มั่วที่ gallery-dl อ่านไม่ได้ (exit 64)
+    post_indicators = ["/posts/", "/photo", "/photos", "/media", "/albums", "/permalink.php", "story.php", "set="]
+    if "/share/" not in target_url and not any(k in target_url for k in post_indicators):
         target_url = target_url.rstrip("/") + "/photos"
 
     out_dir = DATA_RAW / args.album
