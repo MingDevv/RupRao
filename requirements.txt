@@ -1,0 +1,10 @@
+numpy==1.26.4
+opencv-python-headless==4.11.0.86
+onnxruntime==1.19.2
+insightface==1.0.1
+pillow==11.3.0
+faiss-cpu==1.13.0
+fastapi==0.128.8
+uvicorn==0.39.0
+python-multipart==0.0.20
+requests==2.32.5

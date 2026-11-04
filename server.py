@@ -78,9 +78,11 @@ def get_faiss_index():
     """โหลด FAISS Index ไว้ในหน่วยความจำเพื่อความเร็วในการค้นหาระดับไมโครวินาที"""
     global _index_cache
     if _index_cache is None:
-        if not INDEX_PATH.exists():
-            raise HTTPException(status_code=500, detail="ไม่พบไฟล์ FAISS Index กรุณารัน scan_faces.py ก่อน")
-        _index_cache = faiss.read_index(str(INDEX_PATH))
+        if INDEX_PATH.exists():
+            _index_cache = faiss.read_index(str(INDEX_PATH))
+        else:
+            # สร้าง Empty Index สำรองกรณีเพิ่งติดตั้งใหม่ยังไม่มีไฟล์ index.faiss
+            _index_cache = faiss.IndexIDMap2(faiss.IndexFlatIP(512))
     return _index_cache
 
 
