@@ -76,6 +76,10 @@ def delete_by_rel_paths(rel_paths):
 if __name__ == "__main__":
     targets = sys.argv[1:]
     if not targets:
-        # ค่าเริ่มต้น: ลบชุดรูปทดสอบ a-c
-        targets = ["_a.jpg", "_a_flip.jpg", "_b.jpg", "_c.jpg", "test_group.jpg"]
+        raise SystemExit(
+            "⚠️  ต้องระบุชื่อไฟล์ที่ต้องการลบ เช่น:\n"
+            "    python delete_photos.py CRMS6_Students/123456.jpg\n"
+            "    python delete_photos.py d.jpeg ming.jpeg\n"
+            "(ไม่ระบุ = ไม่ลบอะไรเลย กันมือลั่ว)"
+        )
     delete_by_rel_paths(targets)

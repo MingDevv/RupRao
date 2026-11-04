@@ -20,7 +20,10 @@ from pathlib import Path
 import requests
 
 BASE = Path(__file__).resolve().parent
-TEST_SELFIE = BASE / "data" / "input" / "ming.jpeg"
+# เซลฟี่ทดสอบ: ใช้ ming.jpeg ถ้ายังมี ไม่งั้นหยิบรูปแรกจากคลังเพจ (ไฟล์เดิมถูกเคลียร์ออกแล้ว)
+_page_dir = BASE / "data" / "raw" / "CRMS6_Students"
+_selfie_candidates = [BASE / "data" / "input" / "ming.jpeg", *_page_dir.glob("*.jpg")]
+TEST_SELFIE = next((p for p in _selfie_candidates if p.exists()), None)
 SERVER_URL = "http://localhost:8000"
 TEST_PIN = os.getenv("RUPRAO_PIN", "")
 ADMIN_PIN = os.getenv("RUPRAO_ADMIN_PIN", "")
@@ -34,6 +37,11 @@ def test_suite():
     print("=" * 70)
     print("🧪 เริ่มต้นการทดสอบ RupRao Production End-to-End Test Suite")
     print("=" * 70)
+
+    if TEST_SELFIE is None:
+        log("❌ ไม่พบรูปสำหรับใช้ทดสอบเลย (data/input และ data/raw ว่าง) — เพิ่มรูปก่อนแล้วรันใหม่")
+        sys.exit(1)
+    log(f"📷 รูปทดสอบ: {TEST_SELFIE.name}")
 
     # 1. ตรวจสอบว่าเซิร์ฟเวอร์เปิดอยู่
     log("1️⃣ ตรวจสอบการตอบสนองของเซิร์ฟเวอร์...")
