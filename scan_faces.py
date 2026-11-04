@@ -56,10 +56,12 @@ def load_or_create_index(index_path=INDEX_PATH):
 
 
 def save_index(index, index_path=INDEX_PATH):
-    """บันทึก FAISS Index ลงดิสก์"""
+    """บันทึก FAISS Index ลงดิสก์แบบ Atomic (ป้องกันไฟล์เสีย)"""
     index_path = Path(index_path)
     index_path.parent.mkdir(parents=True, exist_ok=True)
-    faiss.write_index(index, str(index_path))
+    tmp_path = index_path.with_suffix(".tmp")
+    faiss.write_index(index, str(tmp_path))
+    os.replace(str(tmp_path), str(index_path))
 
 
 def extract_event_name(file_path, base_dir):
@@ -132,7 +134,15 @@ def main():
         if interrupted:
             break
 
-        rel_path = file_path.name
+        event_name = extract_event_name(file_path, source_dir)
+        raw_base = DATA_DIR / "raw"
+        if raw_base in file_path.parents:
+            rel_path = str(file_path.relative_to(raw_base))
+        else:
+            try:
+                rel_path = str(file_path.relative_to(source_dir))
+            except ValueError:
+                rel_path = file_path.name
 
         # ตรวจสอบระบบ Resume: ถ้าเคยสแกนแล้วให้ข้ามทันที
         if db.is_photo_scanned(conn, str(rel_path)):
@@ -145,7 +155,6 @@ def main():
             img = face_lib.load_image(file_path)
             h, w = img.shape[:2]
             file_size = file_path.stat().st_size
-            event_name = extract_event_name(file_path, source_dir)
 
             # ตรวจจับใบหน้า
             faces = face_lib.detect_faces(img)

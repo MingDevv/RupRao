@@ -22,7 +22,8 @@ import requests
 BASE = Path(__file__).resolve().parent
 TEST_SELFIE = BASE / "data" / "input" / "ming.jpeg"
 SERVER_URL = "http://localhost:8000"
-TEST_PIN = "RUPRAO2026"
+TEST_PIN = os.getenv("RUPRAO_PIN", "")
+ADMIN_PIN = os.getenv("RUPRAO_ADMIN_PIN", "")
 
 
 def log(msg: str):
@@ -150,6 +151,22 @@ def test_suite():
     db.set_photo_hidden(conn, sample_pid, is_hidden=0)
     db.update_report_status(conn, report_id, status="rejected", hide_photo=False)
     log(f"   ♻️ คืนสถานะรูป ID #{sample_pid} ให้พร้อมใช้งานเหมือนเดิมเรียบร้อย")
+
+    # 8. ทดสอบ Endpoint ตรวจสอบสุขภาพระบบ (/api/health)
+    log("8️⃣ ตรวจสอบสถานะความสมบูรณ์ของระบบ (/api/health)...")
+    r_health = requests.get(f"{SERVER_URL}/api/health")
+    assert r_health.status_code == 200, f"/api/health ผิดปกติ: {r_health.text}"
+    health_data = r_health.json()
+    assert health_data["status"] == "healthy", f"สถานะสุขภาพระบบไม่ปกติ: {health_data}"
+    assert health_data["ok"] is True, f"จำนวนใบหน้าและเวกเตอร์ไม่สอดคล้องกัน: {health_data}"
+    log(f"   ✅ สุขภาพระบบสมบูรณ์ 100%! รูป: {health_data['photos']} | ใบหน้า: {health_data['faces']} | เวกเตอร์ FAISS: {health_data['faiss_vectors']}")
+
+    # 9. ทดสอบการจำกัดจำนวนดาวน์โหลด ZIP (สูงสุด 50 รูป)
+    log("9️⃣ ทดสอบการจำกัดเพดานความปลอดภัยในการดาวน์โหลด ZIP (เกิน 50 รูป)...")
+    overflow_ids = ",".join(str(i) for i in range(1, 55))
+    r_overflow = requests.get(f"{SERVER_URL}/api/download?ids={overflow_ids}")
+    assert r_overflow.status_code == 400, "ต้องปฏิเสธคำขอที่เลือกเกิน 50 รูป"
+    log(f"   ✅ ป้องกัน Overload สำเร็จ! ระบบปฏิเสธคำขอดาวน์โหลดเกิน 50 รูป (400 Bad Request)")
 
     print("\n" + "=" * 70)
     print("🎉 ผลการทดสอบ: ผ่านฉลุย 100% ทุกรายการ! ระบบ Production พร้อมเปิดใช้งานจริง")

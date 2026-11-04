@@ -10,5 +10,6 @@ services:
       - ./data:/app/data
     environment:
       - PORT=7860
-      - RUPRAO_PIN=RUPRAO2026
+      - RUPRAO_PIN=${RUPRAO_PIN:-}
+      - RUPRAO_ADMIN_PIN=${RUPRAO_ADMIN_PIN:-}
     restart: unless-stopped

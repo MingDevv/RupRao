@@ -358,13 +358,13 @@
         <div class="flex justify-between items-center text-xs">
           <span class="font-bold text-slate-700">ระดับความแม่นยำในการค้นหา:</span>
           <span id="threshold-val-text" class="font-extrabold text-blue-700 bg-sky-50 px-3 py-0.5 rounded-full border border-sky-200 shadow-2xs">
-            0.34 (สมดุล แนะนำ)
+            0.45 (สมดุล แนะนำ)
           </span>
         </div>
-        <input type="range" id="threshold-slider" min="0.28" max="0.65" step="0.02" value="0.34" class="w-full accent-blue-600 cursor-pointer">
+        <input type="range" id="threshold-slider" min="0.28" max="0.65" step="0.02" value="0.45" class="w-full accent-blue-600 cursor-pointer">
         <div class="flex justify-between text-[11px] font-medium text-slate-400 px-1">
           <span>0.28 (เจอเยอะ)</span>
-          <span class="text-blue-600 font-semibold">0.34 (แนะนำ)</span>
+          <span class="text-blue-600 font-semibold">0.45 (แนะนำ)</span>
           <span>0.65 (หน้าเหมือนเป๊ะ)</span>
         </div>
       </div>
@@ -634,10 +634,10 @@
       const val = parseFloat(e.target.value);
       let desc = 'สมดุล แนะนำ';
       let colorClass = 'text-blue-700 bg-sky-50 border-sky-200';
-      if (val >= 0.50) {
+      if (val >= 0.55) {
         desc = 'ชัวร์มาก หน้าคล้ายสูง';
         colorClass = 'text-emerald-700 bg-emerald-50 border-emerald-200';
-      } else if (val <= 0.32) {
+      } else if (val <= 0.35) {
         desc = 'เจอเยอะ อาจมีคนอื่นติด';
         colorClass = 'text-amber-700 bg-amber-50 border-amber-200';
       }
@@ -1066,9 +1066,12 @@
 
     function downloadSelectedZip() {
       if (selectedPhotoIds.size === 0) return;
+      if (selectedPhotoIds.size > 50) {
+        alert('⚠️ สามารถเลือกดาวน์โหลดได้สูงสุดครั้งละ 50 รูป เพื่อความเสถียรของระบบ');
+        return;
+      }
       const ids = Array.from(selectedPhotoIds).join(',');
-      const savedPin = localStorage.getItem('ruprao_school_pin') || '';
-      window.location.href = `/api/download?ids=${ids}&pin=${encodeURIComponent(savedPin)}`;
+      window.location.href = `/api/download?ids=${ids}`;
     }
 
     // =========================================================================

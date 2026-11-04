@@ -14,14 +14,25 @@ fetch_facebook.py — สคริปต์ดูดรูปกิจกรร�
 """
 import argparse
 import re
+import shutil
 import subprocess
 import sys
 from pathlib import Path
 
 BASE = Path(__file__).resolve().parent
 DATA_RAW = BASE / "data" / "raw"
-GALLERY_DL = BASE / "venv" / "bin" / "gallery-dl"
-PYTHON_BIN = BASE / "venv" / "bin" / "python"
+PYTHON_BIN = sys.executable
+
+
+def get_gallery_dl_cmd():
+    """ค้นหาพาธของ gallery-dl ทั้งใน venv และ environment ของระบบ/Docker"""
+    which_path = shutil.which("gallery-dl")
+    if which_path:
+        return which_path
+    venv_dl = Path(PYTHON_BIN).parent / "gallery-dl"
+    if venv_dl.exists():
+        return str(venv_dl)
+    return "gallery-dl"
 
 
 def resolve_fb_url(url: str) -> str:
@@ -72,12 +83,9 @@ def main():
     print(f"🎯 จำนวนสูงสุด : {args.limit} รูป")
     print("=" * 65)
 
-    if not GALLERY_DL.exists():
-        print("❌ ไม่พบ gallery-dl ใน venv กำลังติดตั้ง...")
-        subprocess.run([str(PYTHON_BIN), "-m", "pip", "install", "gallery-dl"], check=True)
-
+    gallery_dl_bin = get_gallery_dl_cmd()
     cmd = [
-        str(GALLERY_DL),
+        gallery_dl_bin,
         "--range", f"1-{args.limit}",
         "--directory", str(out_dir),
         "--no-mtime",

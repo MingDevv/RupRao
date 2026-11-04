@@ -77,8 +77,7 @@ def init_schema(conn):
 def is_photo_scanned(conn, rel_path):
     """ตรวจสอบว่ารูปนี้เคยสแกนลงฐานข้อมูลไปแล้วหรือยัง (ใช้สำหรับ resume)"""
     cur = conn.cursor()
-    name = Path(rel_path).name
-    cur.execute("SELECT id FROM photos WHERE rel_path = ? OR rel_path = ?", (str(rel_path), name))
+    cur.execute("SELECT id FROM photos WHERE rel_path = ?", (str(rel_path),))
     return cur.fetchone() is not None
 
 

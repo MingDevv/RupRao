@@ -10,8 +10,13 @@ API Endpoints:
 - GET  /api/photo/{photo_id} -> ดึงรูปต้นฉบับความละเอียดเต็ม
 - GET  /api/download?ids=... -> ดาวน์โหลดรูปที่เลือกเป็นไฟล์ ZIP ในคลิกเดียว
 """
+import hmac
 import io
+import logging
 import os
+import re
+import sys
+import threading
 import zipfile
 from pathlib import Path
 from typing import List, Optional
@@ -19,7 +24,8 @@ from typing import List, Optional
 import cv2
 import faiss
 import numpy as np
-from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, Query, UploadFile, Body
+from dotenv import load_dotenv
+from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, Query, UploadFile, Body, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -27,6 +33,11 @@ from fastapi.staticfiles import StaticFiles
 import db
 import face_lib
 import make_thumbs
+
+load_dotenv()
+
+logger = logging.getLogger("ruprao")
+logger.setLevel(logging.INFO)
 
 BASE = Path(__file__).resolve().parent
 DATA_DIR = BASE / "data"
@@ -39,6 +50,9 @@ STATIC_DIR = BASE / "static"
 # รหัสผ่านสำหรับป้องกันการเข้าถึงจากบุคคลภายนอกโรงเรียน (School PIN)
 # ปิดการตรวจรหัสผ่านเป็นค่าเริ่มต้น (เว้นว่างไว้) เพื่อให้ผู้ใช้งานเข้าใช้งานได้ทันที
 RUPRAO_PIN = os.getenv("RUPRAO_PIN", "").strip()
+RUPRAO_ADMIN_PIN = os.getenv("RUPRAO_ADMIN_PIN", "").strip()
+
+_faiss_lock = threading.Lock()
 
 app = FastAPI(
     title="RupRao — ค้นหาตัวเองจากรูปกิจกรรมโรงเรียน",
@@ -59,14 +73,22 @@ _index_cache = None
 _index_mtime = 0
 
 
+def save_index_atomic(index, path: Path = INDEX_PATH):
+    """บันทึกไฟล์ FAISS Index อย่างปลอดภัย (Atomic Save) ป้องกันไฟล์เสียหายจากไฟดับหรือ crash"""
+    tmp = path.with_suffix(".tmp")
+    faiss.write_index(index, str(tmp))
+    os.replace(tmp, path)
+
+
 def check_pin_auth(
+    request: Request,
     x_school_pin: Optional[str] = Header(None, alias="X-School-PIN"),
     pin: Optional[str] = Query(None)
 ):
-    """ตรวจสอบสิทธิ์การเข้าถึงด้วยรหัสผ่านโรงเรียน (School PIN Gate)"""
+    """ตรวจสอบสิทธิ์การเข้าถึงด้วยรหัสผ่านโรงเรียน (School PIN Gate) รองรับ Header, Query และ Cookie"""
     if not RUPRAO_PIN or RUPRAO_PIN == "0":
         return True
-    client_pin = (x_school_pin or pin or "").strip()
+    client_pin = (x_school_pin or pin or request.cookies.get("ruprao_pin") or "").strip()
     if client_pin != RUPRAO_PIN:
         raise HTTPException(
             status_code=401,
@@ -101,7 +123,7 @@ def get_confidence_label(score: float):
 
 
 def find_photo_path(rel_path: str, event_name: str = None) -> Optional[Path]:
-    """ค้นหาไฟล์ภาพจริงในเครื่องอย่างปลอดภัย ป้องกัน Path Traversal"""
+    """ค้นหาไฟล์ภาพจริงในเครื่องอย่างปลอดภัย ป้องกัน Path Traversal (ระบุ Path เต็ม ไม่ใช้ recursive fallback)"""
     safe_rel = Path(rel_path)
     if ".." in safe_rel.parts:
         return None
@@ -120,13 +142,6 @@ def find_photo_path(rel_path: str, event_name: str = None) -> Optional[Path]:
         if p.exists() and p.is_file():
             return p
 
-    # ค้นหาแบบ recursive ภายใน data/raw
-    raw_dir = DATA_DIR / "raw"
-    if raw_dir.exists():
-        found = list(raw_dir.rglob(safe_rel.name))
-        if found:
-            return found[0]
-
     return None
 
 
@@ -140,14 +155,16 @@ async def get_auth_status():
 
 
 @app.post("/api/auth/verify")
-async def verify_pin(payload: dict = Body(...)):
-    """ตรวจสอบความถูกต้องของรหัส PIN โรงเรียน"""
+async def verify_pin(payload: dict = Body(...), response: Response = None):
+    """ตรวจสอบความถูกต้องของรหัส PIN โรงเรียน พร้อมตั้ง Cookie สำหรับรูปภาพ"""
     if not RUPRAO_PIN or RUPRAO_PIN == "0":
         return {"success": True, "message": "ไม่ต้องใช้รหัสผ่าน"}
 
     user_pin = str(payload.get("pin", "")).strip()
     if user_pin == RUPRAO_PIN:
-        return {"success": True, "message": "ยืนยันรหัสโรงเรียนสำเร็จ"}
+        r = JSONResponse({"success": True, "message": "ยืนยันรหัสโรงเรียนสำเร็จ"})
+        r.set_cookie("ruprao_pin", user_pin, httponly=True, samesite="lax", max_age=60 * 60 * 24 * 7)
+        return r
     return JSONResponse(
         status_code=401,
         content={"success": False, "error": "รหัสผ่านโรงเรียนไม่ถูกต้อง กรุณาลองใหม่อีกครั้ง"}
@@ -192,7 +209,7 @@ async def get_stats():
 @app.post("/api/search")
 async def search_faces(
     selfie: UploadFile = File(...),
-    threshold: float = Form(0.35),
+    threshold: float = Form(0.45),
     authorized: bool = Depends(check_pin_auth)
 ):
     """
@@ -231,14 +248,14 @@ async def search_faces(
         query_emb = query_emb / norm
     query_emb_2d = query_emb.reshape(1, -1)
 
-    # 5. ค้นหาใน FAISS
+    # 5. ค้นหาใน FAISS (ขยายผลการค้นหาเป็น 500 ใบหน้าเพื่อให้ครอบคลุม)
     index = get_faiss_index()
     if index.ntotal == 0:
         return {"success": True, "total_found": 0, "results": []}
 
-    k = min(50, index.ntotal)
+    k = min(500, index.ntotal)
     distances, indices = index.search(query_emb_2d, k)
-    print(f"\n🔍 [SEARCH LOG] ค้นพบใบหน้าในรูปค้นหา: {len(faces)} หน้า | คะแนน Top 5 สูงสุด: {[round(float(d), 4) for d in distances[0][:5]]} | Threshold: {threshold}")
+    logger.debug(f"[SEARCH LOG] faces: {len(faces)} | Top 5: {[round(float(d), 4) for d in distances[0][:5]]} | Threshold: {threshold}")
 
     # 6. ดึงข้อมูลจาก SQLite
     conn = db.get_connection(DB_PATH)
@@ -289,7 +306,10 @@ async def search_faces(
 
 
 @app.get("/api/thumb/{photo_id}")
-async def get_thumbnail(photo_id: int):
+async def get_thumbnail(
+    photo_id: int,
+    authorized: bool = Depends(check_pin_auth)
+):
     """ส่งรูปภาพ Thumbnail WebP 640px"""
     conn = db.get_connection(DB_PATH)
     photo = db.get_photo_by_id(conn, photo_id)
@@ -323,7 +343,10 @@ async def get_thumbnail(photo_id: int):
 
 
 @app.get("/api/photo/{photo_id}")
-async def get_photo(photo_id: int):
+async def get_photo(
+    photo_id: int,
+    authorized: bool = Depends(check_pin_auth)
+):
     """ส่งรูปภาพต้นฉบับความละเอียดเต็มสำหรับเปิดดูและดาวน์โหลด"""
     conn = db.get_connection(DB_PATH)
     photo = db.get_photo_by_id(conn, photo_id)
@@ -345,7 +368,17 @@ async def download_photos(
     ids: str = Query(..., description="รายการ photo_id คั่นด้วยจุลภาค เช่น 1,2,5"),
     authorized: bool = Depends(check_pin_auth)
 ):
-    """รวมรูปภาพที่เลือกลงในไฟล์ ZIP ให้ดาวน์โหลดในคลิกเดียว (ไม่รวมรูปที่ถูกสั่งซ่อน)"""
+    """รวมรูปภาพที่เลือกลงในไฟล์ ZIP ให้ดาวน์โหลดในคลิกเดียว (ไม่รวมรูปที่ถูกสั่งซ่อน จำกัดสูงสุด 50 รูปต่อครั้ง)"""
+    try:
+        photo_ids = [int(x.strip()) for x in ids.split(",") if x.strip().isdigit()]
+    except Exception:
+        raise HTTPException(status_code=400, detail="รูปแบบ ID ไม่ถูกต้อง")
+
+    if not photo_ids:
+        raise HTTPException(status_code=400, detail="ไม่ได้ระบุรูปภาพที่ต้องการดาวน์โหลด")
+
+    if len(photo_ids) > 50:
+        raise HTTPException(status_code=400, detail="เลือกได้ไม่เกิน 50 รูปต่อครั้งเพื่อความเสถียรของระบบ")
     try:
         photo_ids = [int(x.strip()) for x in ids.split(",") if x.strip().isdigit()]
     except Exception:
@@ -421,7 +454,15 @@ async def admin_page():
 RUPRAO_ADMIN_PIN = os.getenv("RUPRAO_ADMIN_PIN", "").strip()
 
 
+def _admin_ok(pin: str) -> bool:
+    """ตรวจสอบความถูกต้องของรหัส Admin PIN ด้วย Constant-Time comparison (ไม่รับ student PIN หรือ hardcoded fallback)"""
+    if not RUPRAO_ADMIN_PIN or RUPRAO_ADMIN_PIN == "0":
+        return True
+    return bool(pin) and hmac.compare_digest(pin, RUPRAO_ADMIN_PIN)
+
+
 def check_admin_auth(
+    request: Request,
     x_admin_pin: Optional[str] = Header(None, alias="X-Admin-PIN"),
     admin_pin: Optional[str] = Query(None)
 ):
@@ -429,10 +470,8 @@ def check_admin_auth(
     if not RUPRAO_ADMIN_PIN or RUPRAO_ADMIN_PIN == "0":
         return True
 
-    valid_pins = {RUPRAO_ADMIN_PIN, "ADMIN2026", RUPRAO_PIN}
-    valid_pins.discard("")
-    client_pin = (x_admin_pin or admin_pin or "").strip()
-    if not client_pin or client_pin not in valid_pins:
+    client_pin = (x_admin_pin or admin_pin or request.cookies.get("ruprao_admin_pin") or "").strip()
+    if not _admin_ok(client_pin):
         raise HTTPException(
             status_code=401,
             detail="กรุณาระบุรหัสผ่านผู้ดูแลระบบ (Admin PIN) ที่ถูกต้อง"
@@ -441,16 +480,16 @@ def check_admin_auth(
 
 
 @app.post("/api/admin/login")
-async def admin_login(payload: dict = Body(...)):
-    """ยืนยันตัวตนเข้าสู่ระบบผู้ดูแลระบบ"""
+async def admin_login(payload: dict = Body(...), response: Response = None):
+    """ยืนยันตัวตนเข้าสู่ระบบผู้ดูแลระบบ พร้อมตั้ง Cookie"""
     if not RUPRAO_ADMIN_PIN or RUPRAO_ADMIN_PIN == "0":
         return {"success": True, "message": "เข้าสู่ระบบสำเร็จ (โหมดเปิดเสรี)", "token": "OPEN"}
 
     pin = str(payload.get("pin", "")).strip()
-    valid_pins = {RUPRAO_ADMIN_PIN, "ADMIN2026", RUPRAO_PIN}
-    valid_pins.discard("")
-    if pin in valid_pins:
-        return {"success": True, "message": "เข้าสู่ระบบแอดมินสำเร็จ", "token": pin}
+    if _admin_ok(pin):
+        r = JSONResponse({"success": True, "message": "เข้าสู่ระบบแอดมินสำเร็จ", "token": pin})
+        r.set_cookie("ruprao_admin_pin", pin, httponly=True, samesite="lax", max_age=60 * 60 * 24 * 7)
+        return r
     return JSONResponse(
         status_code=401,
         content={"success": False, "error": "รหัสผ่านแอดมินไม่ถูกต้อง"}
@@ -528,12 +567,13 @@ async def delete_photos_admin(
         fids = db.get_photo_faiss_ids(conn, p["id"])
         faiss_ids_to_remove.extend(fids)
 
-    # 2. ลบออกจาก FAISS Index
+    # 2. ลบออกจาก FAISS Index อย่างปลอดภัยด้วย Thread Lock และ Atomic Save
     if faiss_ids_to_remove:
-        index = get_faiss_index()
-        index.remove_ids(np.array(faiss_ids_to_remove, dtype=np.int64))
-        if INDEX_PATH.exists():
-            faiss.write_index(index, str(INDEX_PATH))
+        with _faiss_lock:
+            index = get_faiss_index()
+            index.remove_ids(np.array(faiss_ids_to_remove, dtype=np.int64))
+            if INDEX_PATH.exists():
+                save_index_atomic(index)
 
     # 3. ลบไฟล์จริงบนดิสก์และ Thumbnail
     deleted_files = 0
@@ -591,7 +631,8 @@ async def upload_photos_admin(
     authorized: bool = Depends(check_admin_auth)
 ):
     """อัปโหลดรูปภาพกิจกรรมเข้าสู่อัลบั้ม พร้อมสแกนตรวจจับใบหน้าอัตโนมัติทันที"""
-    safe_album = album.strip() or "งานกิจกรรมทั่วไป"
+    # ป้องกัน Path Traversal ในชื่ออัลบั้ม
+    safe_album = re.sub(r'[\\/:*?"<>|]', "_", album.strip()).strip(". ") or "งานกิจกรรมทั่วไป"
     album_dir = DATA_DIR / "raw" / safe_album
     album_dir.mkdir(parents=True, exist_ok=True)
     THUMB_DIR.mkdir(parents=True, exist_ok=True)
@@ -605,16 +646,17 @@ async def upload_photos_admin(
     for up_file in files:
         if not up_file.filename:
             continue
-        safe_name = Path(up_file.filename).name
-        save_path = album_dir / safe_name
+        safe_name = re.sub(r'[\\/:*?"<>|]', "_", Path(up_file.filename).name)
+        rel_path = f"{safe_album}/{safe_name}"
 
-        content = await up_file.read()
-        with open(save_path, "wb") as f:
-            f.write(content)
-
-        rel_path = safe_name
+        # ตรวจสอบว่ารูปนี้เคยบันทึกลงระบบแล้วหรือยัง ก่อนเขียนไฟล์ลงดิสก์
         if db.is_photo_scanned(conn, rel_path):
             continue
+
+        content = await up_file.read()
+        save_path = album_dir / safe_name
+        with open(save_path, "wb") as f:
+            f.write(content)
 
         nparr = np.frombuffer(content, np.uint8)
         img_bgr = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
@@ -639,16 +681,20 @@ async def upload_photos_admin(
 
             faiss_id = db.get_next_faiss_id(conn)
             emb_2d = emb.reshape(1, -1)
-            index.add_with_ids(emb_2d, np.array([faiss_id], dtype=np.int64))
+            with _faiss_lock:
+                index.add_with_ids(emb_2d, np.array([faiss_id], dtype=np.int64))
             db.add_face(conn, photo_id, idx, face.bbox, float(face.det_score), faiss_id)
             new_faces_count += 1
 
         thumb_path = (THUMB_DIR / rel_path).with_suffix(".webp")
+        thumb_path.parent.mkdir(parents=True, exist_ok=True)
         make_thumbs.create_thumbnail(save_path, thumb_path)
         saved_count += 1
 
     conn.commit()
-    faiss.write_index(index, str(INDEX_PATH))
+    if new_faces_count > 0:
+        with _faiss_lock:
+            save_index_atomic(index)
 
     return {
         "success": True,
@@ -663,7 +709,7 @@ async def fetch_facebook_admin(
     payload: dict = Body(...),
     authorized: bool = Depends(check_admin_auth)
 ):
-    """สั่งดึงรูปภาพจาก Facebook อัตโนมัติในพื้นหลัง"""
+    """สั่งดึงรูปภาพจาก Facebook อัตโนมัติในพื้นหลัง (ใช้ sys.executable เพื่อความเข้ากันได้กับ Docker)"""
     import subprocess
     url = str(payload.get("url", "")).strip()
     album = str(payload.get("album", "Facebook_Photos")).strip()
@@ -673,7 +719,7 @@ async def fetch_facebook_admin(
         raise HTTPException(status_code=400, detail="กรุณาระบุ URL ของ Facebook")
 
     script = BASE / "fetch_facebook.py"
-    python_bin = BASE / "venv" / "bin" / "python"
+    python_bin = sys.executable
     cmd = [str(python_bin), str(script), url, "--album", album, "--limit", str(limit), "--scan"]
 
     try:
@@ -694,10 +740,10 @@ async def fetch_facebook_admin(
 async def scan_disk_admin(
     authorized: bool = Depends(check_admin_auth)
 ):
-    """สแกนรูปภาพที่ยังไม่ได้เข้าระบบทั้งหมดใน data/raw และ data/input ทันที"""
+    """สแกนรูปภาพที่ยังไม่ได้เข้าระบบทั้งหมดใน data/raw และ data/input ทันที (ใช้ sys.executable)"""
     import subprocess
     script = BASE / "scan_faces.py"
-    python_bin = BASE / "venv" / "bin" / "python"
+    python_bin = sys.executable
 
     targets = [DATA_DIR / "raw", INPUT_DIR]
     outputs = []
@@ -748,7 +794,7 @@ async def act_on_report(
     payload: dict = Body(...),
     authorized: bool = Depends(check_admin_auth)
 ):
-    """อนุมัติ/ปฏิเสธคำขอลบรูปภาพ"""
+    """อนุมัติ/ปฏิเสธ/ลบถาวร คำขอลบรูปภาพตามกฎหมาย PDPA"""
     action = str(payload.get("action", "")).lower()
     conn = db.get_connection(DB_PATH)
 
@@ -770,6 +816,37 @@ async def act_on_report(
         if not row:
             raise HTTPException(status_code=404, detail="ไม่พบคำขอ")
         success = db.set_photo_hidden(conn, int(row[0]), 0)
+    elif action == "delete":
+        # ลบรูปภาพและเวกเตอร์ออกจากระบบถาวร (PDPA Right to Erasure)
+        cur = conn.cursor()
+        cur.execute("SELECT photo_id FROM reports WHERE id = ?", (int(report_id),))
+        row = cur.fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="ไม่พบคำขอ")
+        target_photo_id = int(row[0])
+        photo = db.get_photo_by_id(conn, target_photo_id)
+        if photo:
+            fids = db.get_photo_faiss_ids(conn, target_photo_id)
+            if fids:
+                with _faiss_lock:
+                    index = get_faiss_index()
+                    index.remove_ids(np.array(fids, dtype=np.int64))
+                    if INDEX_PATH.exists():
+                        save_index_atomic(index)
+            real_file = find_photo_path(photo["rel_path"], photo.get("event_name"))
+            if real_file and real_file.exists():
+                try:
+                    real_file.unlink()
+                except Exception:
+                    pass
+            thumb = (THUMB_DIR / Path(photo["rel_path"])).with_suffix(".webp")
+            if thumb.exists():
+                try:
+                    thumb.unlink()
+                except Exception:
+                    pass
+            db.delete_photo_by_id(conn, target_photo_id)
+        success = db.update_report_status(conn, report_id, status="approved", hide_photo=False)
     else:
         raise HTTPException(status_code=400, detail="action ไม่ถูกต้อง")
 
@@ -777,6 +854,73 @@ async def act_on_report(
         raise HTTPException(status_code=404, detail="ไม่พบคำขอ")
 
     return {"success": True, "message": f"ดำเนินการ '{action}' สำเร็จ"}
+
+
+@app.delete("/api/admin/albums/{album_name}")
+async def delete_album_admin(
+    album_name: str,
+    authorized: bool = Depends(check_admin_auth)
+):
+    """ลบทั้งอัลบั้มและเวกเตอร์ใบหน้าทั้งหมดของอัลบั้มนั้น (สำหรับล้างข้อมูลทดสอบ)"""
+    conn = db.get_connection(DB_PATH)
+    cur = conn.cursor()
+    cur.execute("SELECT id FROM photos WHERE event_name = ?", (album_name,))
+    pids = [r[0] for r in cur.fetchall()]
+    if not pids:
+        raise HTTPException(status_code=404, detail="ไม่พบอัลบั้มที่ระบุ")
+
+    faiss_ids_to_remove = []
+    for pid in pids:
+        faiss_ids_to_remove.extend(db.get_photo_faiss_ids(conn, pid))
+
+    if faiss_ids_to_remove:
+        with _faiss_lock:
+            index = get_faiss_index()
+            index.remove_ids(np.array(faiss_ids_to_remove, dtype=np.int64))
+            if INDEX_PATH.exists():
+                save_index_atomic(index)
+
+    photos = db.get_photos_by_ids(conn, pids)
+    for p in photos:
+        real_file = find_photo_path(p["rel_path"], p.get("event_name"))
+        if real_file and real_file.exists():
+            try:
+                real_file.unlink()
+            except Exception:
+                pass
+        thumb = (THUMB_DIR / Path(p["rel_path"])).with_suffix(".webp")
+        if thumb.exists():
+            try:
+                thumb.unlink()
+            except Exception:
+                pass
+        db.delete_photo_by_id(conn, p["id"])
+
+    return {
+        "success": True,
+        "deleted_photos": len(photos),
+        "removed_faces": len(faiss_ids_to_remove),
+        "message": f"ลบอัลบั้ม '{album_name}' เรียบร้อยแล้ว ({len(photos)} รูป, {len(faiss_ids_to_remove)} ใบหน้า)"
+    }
+
+
+@app.get("/api/health")
+async def health_check():
+    """ตรวจสอบความสมบูรณ์ของระบบ ฐานข้อมูล และ FAISS Index"""
+    conn = db.get_connection(DB_PATH)
+    stats = db.get_stats(conn)
+    index = get_faiss_index()
+    photos_count = stats.get("photos", 0)
+    faces_count = stats.get("faces", 0)
+    faiss_vectors = index.ntotal if index else 0
+    is_consistent = (faces_count == faiss_vectors)
+    return {
+        "status": "healthy" if is_consistent else "warning",
+        "photos": photos_count,
+        "faces": faces_count,
+        "faiss_vectors": faiss_vectors,
+        "ok": is_consistent
+    }
 
 
 

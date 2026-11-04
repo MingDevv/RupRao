@@ -12,4 +12,9 @@ data/
 *.faiss
 *.webp
 
+# ไฟล์ Configuration และ Secrets
+.env
+*.tmp
+backups/
+
 run_tunnel.sh

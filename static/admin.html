@@ -818,15 +818,21 @@
             <td class="p-3.5">${statusBadge}</td>
             <td class="p-3.5 text-right whitespace-nowrap space-x-1">
               ${r.status === 'pending' ? `
-                <button type="button" onclick="actionOnReport(${r.id}, 'approve')" class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition font-medium">
+                <button type="button" onclick="actionOnReport(${r.id}, 'approve')" class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition font-medium text-[11px]" title="อนุมัติและซ่อนรูปภาพทันที">
                   ✓ อนุมัติ & ซ่อนรูป
                 </button>
-                <button type="button" onclick="actionOnReport(${r.id}, 'reject')" class="px-2.5 py-1 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg transition font-medium">
+                <button type="button" onclick="actionOnReport(${r.id}, 'delete')" class="px-2.5 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded-lg transition font-medium text-[11px]" title="ลบไฟล์รูปภาพและเวกเตอร์ออกจากระบบถาวรตามกฎหมาย PDPA">
+                  🗑️ ลบถาวร (PDPA)
+                </button>
+                <button type="button" onclick="actionOnReport(${r.id}, 'reject')" class="px-2.5 py-1 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg transition font-medium text-[11px]">
                   ✕ ปฏิเสธ
                 </button>
               ` : `
-                <button type="button" onclick="actionOnReport(${r.id}, '${r.is_hidden ? 'unhide' : 'hide'}')" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg transition">
+                <button type="button" onclick="actionOnReport(${r.id}, '${r.is_hidden ? 'unhide' : 'hide'}')" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg transition text-[11px]">
                   ${r.is_hidden ? '👁️ เลิกซ่อน' : '🚫 ซ่อนรูป'}
+                </button>
+                <button type="button" onclick="actionOnReport(${r.id}, 'delete')" class="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-lg transition font-medium text-[11px]" title="ลบไฟล์รูปภาพและเวกเตอร์ออกจากระบบถาวรตามกฎหมาย PDPA">
+                  🗑️ ลบถาวร (PDPA)
                 </button>
               `}
             </td>
@@ -839,7 +845,11 @@
     }
 
     async function actionOnReport(reportId, action) {
-      if (!confirm(`ยืนยันการดำเนินการ: ${action}?`)) return;
+      if (action === 'delete') {
+        if (!confirm(`⚠️ ยืนยันการลบรูปภาพคำขอ #${reportId} ออกจากระบบถาวรตามสิทธิ PDPA?\n(ไฟล์ภาพต้นฉบับ Thumbnail และเวกเตอร์ AI ทั้งหมดจะถูกลบทันที ไม่สามารถกู้คืนได้)`)) return;
+      } else {
+        if (!confirm(`ยืนยันการดำเนินการ: ${action}?`)) return;
+      }
       try {
         const res = await fetch(`/api/admin/reports/${reportId}/action`, {
           method: 'POST',
