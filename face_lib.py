@@ -25,11 +25,11 @@ def get_app():
 
 
 def load_image(path):
-    """อ่านไฟล์รูปออกมาเป็นตารางตัวเลข — ถ้าไฟล์พังจะบอกชัดๆ"""
+    """อ่านไฟล์รูปออกมาเป็นตารางตัวเลข — ถ้าไฟล์เสียหรือไม่สามารถอ่านได้จะส่ง ValueError"""
     import cv2
     img = cv2.imread(str(path))
     if img is None:
-        raise SystemExit(f"❌ อ่านรูปไม่ได้: {path}")
+        raise ValueError(f"ไม่สามารถเปิดอ่านไฟล์รูปภาพได้ (ไฟล์อาจเสียหายหรือรูปแบบไม่ถูกต้อง): {path}")
     return img
 
 

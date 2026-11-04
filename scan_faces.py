@@ -152,62 +152,81 @@ def main():
         print(f"[{i}/{len(all_files)}] 📷 สแกน: {rel_path} ...", end=" ", flush=True)
 
         try:
+            # 1. ตรวจสอบและอ่านรูปภาพ (ดักจับไฟล์เสียโดยไม่ทำให้โปรเซสหยุดทำงาน)
+            file_size = file_path.stat().st_size
+            if file_size == 0:
+                print("⚠️ ข้าม: ไฟล์มีขนาด 0 bytes")
+                continue
+
             img = face_lib.load_image(file_path)
             h, w = img.shape[:2]
-            file_size = file_path.stat().st_size
 
-            # ตรวจจับใบหน้า
+            # 2. ตรวจจับใบหน้า
             faces = face_lib.detect_faces(img)
-            
-            # บันทึกรูปภาพลงตาราง photos
-            photo_id = db.add_photo(conn, str(rel_path), event_name, w, h, file_size)
 
-            # วนบันทึกแต่ละใบหน้าที่พบ
-            valid_face_count = 0
-            for idx, face in enumerate(faces):
-                score = float(face.det_score)
-                if score < MIN_DET_SCORE:
-                    continue
-
-                emb = np.asarray(face.embedding, dtype=np.float32)
-                # L2 Normalize: เวกเตอร์ความยาว 1 เพื่อให้ Inner Product = Cosine Similarity
-                norm = np.linalg.norm(emb)
-                if norm > 0:
-                    emb = emb / norm
-                else:
-                    continue
-
-                faiss_id = db.get_next_faiss_id(conn)
-
-                # เพิ่มลง FAISS Index
-                emb_2d = emb.reshape(1, -1)
-                index.add_with_ids(emb_2d, np.array([faiss_id], dtype=np.int64))
-
-                # เพิ่มลง SQLite
-                db.add_face(conn, photo_id, idx, face.bbox, score, faiss_id)
-                valid_face_count += 1
-                new_faces += 1
-
-            # สร้าง Thumbnail ควบคู่กันไป
+            # 3. สร้าง Thumbnail ให้สำเร็จก่อนแตะต้องฐานข้อมูล
             thumb_path = (THUMB_DIR / rel_path).with_suffix(".webp")
+            thumb_path.parent.mkdir(parents=True, exist_ok=True)
             make_thumbs.create_thumbnail(file_path, thumb_path)
 
-            scanned_photos += 1
-            print(f"เจอ {valid_face_count} หน้า ✅")
+            # 4. บันทึกข้อมูลลง SQLite และ FAISS อย่างสมบูรณ์แบบ Atomic ต่อรูป
+            added_faiss_ids = []
+            try:
+                photo_id = db.add_photo(conn, str(rel_path), event_name, w, h, file_size)
+                valid_face_count = 0
 
-            # Commit เป็นระยะทุกๆ 10 รูป เพื่อป้องกันข้อมูลสูญหาย
-            if scanned_photos % 10 == 0:
+                for idx, face in enumerate(faces):
+                    score = float(face.det_score)
+                    if score < MIN_DET_SCORE:
+                        continue
+
+                    emb = np.asarray(face.embedding, dtype=np.float32)
+                    norm = np.linalg.norm(emb)
+                    if norm > 0:
+                        emb = emb / norm
+                    else:
+                        continue
+
+                    faiss_id = db.get_next_faiss_id(conn)
+                    emb_2d = emb.reshape(1, -1)
+                    index.add_with_ids(emb_2d, np.array([faiss_id], dtype=np.int64))
+                    added_faiss_ids.append(faiss_id)
+
+                    db.add_face(conn, photo_id, idx, face.bbox, score, faiss_id)
+                    valid_face_count += 1
+                    new_faces += 1
+
+                # Commit ทันทีต่อรูปเมื่อทุกขั้นตอนสำเร็จสมบูรณ์
                 conn.commit()
-                save_index(index, INDEX_PATH)
+                scanned_photos += 1
+                print(f"เจอ {valid_face_count} หน้า ✅")
+
+                # เซฟ Index เป็นระยะทุกๆ 10 รูป
+                if scanned_photos % 10 == 0:
+                    save_index(index, INDEX_PATH)
+
+            except Exception as db_err:
+                conn.rollback()
+                if added_faiss_ids:
+                    index.remove_ids(np.array(added_faiss_ids, dtype=np.int64))
+                if thumb_path.exists():
+                    try:
+                        thumb_path.unlink()
+                    except Exception:
+                        pass
+                print(f"❌ ข้อผิดพลาดบันทึกข้อมูล (Rollback เรียบร้อย): {db_err}")
 
         except Exception as e:
-            print(f"❌ ขัดข้อง: {e}")
+            # ข้ามไฟล์ที่เสียหายหรืออ่านไม่ออก โดยไม่หยุดการสแกนไฟล์ถัดไป
+            print(f"⚠️ ข้ามไฟล์ (ไฟล์เสีย/อ่านไม่ได้): {e}")
 
     # 4. บันทึกผลลัพธ์ทั้งหมด
     conn.commit()
     save_index(index, INDEX_PATH)
 
     stats = db.get_stats(conn)
+    is_consistent = (stats['faces'] == index.ntotal)
+
     print("\n" + "=" * 50)
     print("📊 สรุปผลการสแกน (Phase 3)")
     print("=" * 50)
@@ -216,6 +235,10 @@ def main():
     print(f"  - หน้าที่พบใหม่รอบนี้   : {new_faces} หน้า")
     print(f"  - รวมทั้งหมดในระบบ    : {stats['photos']} รูป | {stats['faces']} หน้า")
     print(f"  - เวกเตอร์ใน FAISS   : {index.ntotal} รายการ")
+    if is_consistent:
+        print(f"  - สถานะความสอดคล้อง : ✅ สมบูรณ์ 100% (SQLite = FAISS)")
+    else:
+        print(f"  - สถานะความสอดคล้อง : ⚠️ ไม่สอดคล้องกัน (SQLite {stats['faces']} != FAISS {index.ntotal})")
     print("=" * 50 + "\n")
 
 

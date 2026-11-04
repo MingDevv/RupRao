@@ -24,7 +24,6 @@ from typing import List, Optional
 import cv2
 import faiss
 import numpy as np
-from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, Query, UploadFile, Body, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, StreamingResponse
@@ -34,7 +33,11 @@ import db
 import face_lib
 import make_thumbs
 
-load_dotenv()
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
 
 logger = logging.getLogger("ruprao")
 logger.setLevel(logging.INFO)
@@ -248,14 +251,24 @@ async def search_faces(
         query_emb = query_emb / norm
     query_emb_2d = query_emb.reshape(1, -1)
 
-    # 5. ค้นหาใน FAISS (ขยายผลการค้นหาเป็น 500 ใบหน้าเพื่อให้ครอบคลุม)
+    # 5. ค้นหาใน FAISS (เริ่มต้น k=500 และขยายอัตโนมัติหากยังมีผลคะแนนผ่าน threshold ที่ขอบเขต)
     index = get_faiss_index()
     if index.ntotal == 0:
         return {"success": True, "total_found": 0, "results": []}
 
     k = min(500, index.ntotal)
-    distances, indices = index.search(query_emb_2d, k)
-    logger.debug(f"[SEARCH LOG] faces: {len(faces)} | Top 5: {[round(float(d), 4) for d in distances[0][:5]]} | Threshold: {threshold}")
+    while True:
+        distances, indices = index.search(query_emb_2d, k)
+        # หากเวกเตอร์ตัวสุดท้ายที่ตำแหน่ง k-1 ยังมีคะแนน >= threshold และยังมีเวกเตอร์ใน index เหลืออยู่ ให้ขยาย k ต่อไป
+        if k < index.ntotal and distances[0][-1] >= threshold:
+            next_k = min(k + 500, index.ntotal, 20000)
+            if next_k == k:
+                break
+            k = next_k
+        else:
+            break
+
+    logger.debug(f"[SEARCH LOG] faces: {len(faces)} | k_used: {k} | Top 5: {[round(float(d), 4) for d in distances[0][:5]]} | Threshold: {threshold}")
 
     # 6. ดึงข้อมูลจาก SQLite
     conn = db.get_connection(DB_PATH)
@@ -661,35 +674,70 @@ async def upload_photos_admin(
         nparr = np.frombuffer(content, np.uint8)
         img_bgr = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
         if img_bgr is None:
+            if save_path.exists():
+                try:
+                    save_path.unlink()
+                except Exception:
+                    pass
+            continue
+
+        thumb_path = (THUMB_DIR / rel_path).with_suffix(".webp")
+        thumb_path.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            make_thumbs.create_thumbnail(save_path, thumb_path)
+        except Exception as thumb_err:
+            if save_path.exists():
+                try:
+                    save_path.unlink()
+                except Exception:
+                    pass
+            logger.warning(f"Failed to create thumbnail for {rel_path}: {thumb_err}")
             continue
 
         h, w = img_bgr.shape[:2]
         file_size = len(content)
 
         faces = face_lib.detect_faces(img_bgr)
-        photo_id = db.add_photo(conn, rel_path, safe_album, w, h, file_size)
+        added_fids_this_photo = []
+        try:
+            photo_id = db.add_photo(conn, rel_path, safe_album, w, h, file_size)
 
-        for idx, face in enumerate(faces):
-            if float(face.det_score) < 0.45:
-                continue
-            emb = np.asarray(face.embedding, dtype=np.float32)
-            norm = np.linalg.norm(emb)
-            if norm > 0:
-                emb = emb / norm
-            else:
-                continue
+            for idx, face in enumerate(faces):
+                if float(face.det_score) < 0.45:
+                    continue
+                emb = np.asarray(face.embedding, dtype=np.float32)
+                norm = np.linalg.norm(emb)
+                if norm > 0:
+                    emb = emb / norm
+                else:
+                    continue
 
-            faiss_id = db.get_next_faiss_id(conn)
-            emb_2d = emb.reshape(1, -1)
-            with _faiss_lock:
-                index.add_with_ids(emb_2d, np.array([faiss_id], dtype=np.int64))
-            db.add_face(conn, photo_id, idx, face.bbox, float(face.det_score), faiss_id)
-            new_faces_count += 1
+                faiss_id = db.get_next_faiss_id(conn)
+                emb_2d = emb.reshape(1, -1)
+                with _faiss_lock:
+                    index.add_with_ids(emb_2d, np.array([faiss_id], dtype=np.int64))
+                added_fids_this_photo.append(faiss_id)
+                db.add_face(conn, photo_id, idx, face.bbox, float(face.det_score), faiss_id)
+                new_faces_count += 1
 
-        thumb_path = (THUMB_DIR / rel_path).with_suffix(".webp")
-        thumb_path.parent.mkdir(parents=True, exist_ok=True)
-        make_thumbs.create_thumbnail(save_path, thumb_path)
-        saved_count += 1
+            conn.commit()
+            saved_count += 1
+        except Exception as photo_err:
+            conn.rollback()
+            if added_fids_this_photo:
+                with _faiss_lock:
+                    index.remove_ids(np.array(added_fids_this_photo, dtype=np.int64))
+            if thumb_path.exists():
+                try:
+                    thumb_path.unlink()
+                except Exception:
+                    pass
+            if save_path.exists():
+                try:
+                    save_path.unlink()
+                except Exception:
+                    pass
+            logger.error(f"Error processing {rel_path}: {photo_err}")
 
     conn.commit()
     if new_faces_count > 0:
@@ -717,6 +765,25 @@ async def fetch_facebook_admin(
 
     if not url:
         raise HTTPException(status_code=400, detail="กรุณาระบุ URL ของ Facebook")
+
+    # ตรวจสอบความพร้อมของโปรแกรม gallery-dl ใน environment
+    import shutil
+    has_gallery_dl = shutil.which("gallery-dl") is not None
+    if not has_gallery_dl:
+        try:
+            import gallery_dl
+            has_gallery_dl = True
+        except ImportError:
+            has_gallery_dl = False
+
+    if not has_gallery_dl:
+        return JSONResponse(
+            status_code=400,
+            content={
+                "success": False,
+                "error": "ยังไม่ได้ติดตั้ง gallery-dl ในระบบ กรุณาติดตั้งด้วยคำสั่ง: pip install gallery-dl"
+            }
+        )
 
     script = BASE / "fetch_facebook.py"
     python_bin = sys.executable

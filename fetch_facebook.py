@@ -25,14 +25,14 @@ PYTHON_BIN = sys.executable
 
 
 def get_gallery_dl_cmd():
-    """ค้นหาพาธของ gallery-dl ทั้งใน venv และ environment ของระบบ/Docker"""
+    """ค้นหาคำสั่ง gallery-dl ทั้งแบบไบนารีและแบบโมดูลไพทอนเพื่อความเสถียรใน Docker/Server"""
     which_path = shutil.which("gallery-dl")
     if which_path:
-        return which_path
+        return [which_path]
     venv_dl = Path(PYTHON_BIN).parent / "gallery-dl"
     if venv_dl.exists():
-        return str(venv_dl)
-    return "gallery-dl"
+        return [str(venv_dl)]
+    return [PYTHON_BIN, "-m", "gallery_dl"]
 
 
 def resolve_fb_url(url: str) -> str:
@@ -83,9 +83,7 @@ def main():
     print(f"🎯 จำนวนสูงสุด : {args.limit} รูป")
     print("=" * 65)
 
-    gallery_dl_bin = get_gallery_dl_cmd()
-    cmd = [
-        gallery_dl_bin,
+    cmd = get_gallery_dl_cmd() + [
         "--range", f"1-{args.limit}",
         "--directory", str(out_dir),
         "--no-mtime",
