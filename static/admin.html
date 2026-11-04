@@ -390,7 +390,18 @@
     let selectedFilesForUpload = [];
     let debounceTimer = null;
 
-    window.addEventListener('DOMContentLoaded', () => {
+    window.addEventListener('DOMContentLoaded', async () => {
+      try {
+        const res = await fetch('/api/auth/status');
+        const st = await res.json();
+        if (!st.admin_pin_required) {
+          adminToken = 'OPEN';
+          hideAuthModal();
+          initDashboard();
+          return;
+        }
+      } catch (e) {}
+
       if (adminToken) {
         verifyAdminSession();
       } else {

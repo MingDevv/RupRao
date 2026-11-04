@@ -37,8 +37,8 @@ INPUT_DIR = DATA_DIR / "input"
 STATIC_DIR = BASE / "static"
 
 # รหัสผ่านสำหรับป้องกันการเข้าถึงจากบุคคลภายนอกโรงเรียน (School PIN)
-# สามารถกำหนดผ่าน Environment Variable RUPRAO_PIN หรือเว้นว่าง/ตั้งเป็น 0 เพื่อปิดการตรวจ
-RUPRAO_PIN = os.getenv("RUPRAO_PIN", "RUPRAO2026").strip()
+# ปิดการตรวจรหัสผ่านเป็นค่าเริ่มต้น (เว้นว่างไว้) เพื่อให้ผู้ใช้งานเข้าใช้งานได้ทันที
+RUPRAO_PIN = os.getenv("RUPRAO_PIN", "").strip()
 
 app = FastAPI(
     title="RupRao — ค้นหาตัวเองจากรูปกิจกรรมโรงเรียน",
@@ -134,7 +134,8 @@ def find_photo_path(rel_path: str, event_name: str = None) -> Optional[Path]:
 async def get_auth_status():
     """ตรวจสอบว่าระบบเปิดใช้งานรหัสผ่านโรงเรียน (School PIN) หรือไม่"""
     return {
-        "pin_required": bool(RUPRAO_PIN and RUPRAO_PIN != "0")
+        "pin_required": bool(RUPRAO_PIN and RUPRAO_PIN != "0"),
+        "admin_pin_required": bool(RUPRAO_ADMIN_PIN and RUPRAO_ADMIN_PIN != "0")
     }
 
 
@@ -417,7 +418,7 @@ async def admin_page():
 # ADMIN DASHBOARD & MANAGEMENT API
 # =============================================================================
 
-RUPRAO_ADMIN_PIN = os.getenv("RUPRAO_ADMIN_PIN", os.getenv("RUPRAO_PIN", "RUPRAO2026")).strip()
+RUPRAO_ADMIN_PIN = os.getenv("RUPRAO_ADMIN_PIN", "").strip()
 
 
 def check_admin_auth(
@@ -425,7 +426,11 @@ def check_admin_auth(
     admin_pin: Optional[str] = Query(None)
 ):
     """ตรวจสอบสิทธิ์สำหรับผู้ดูแลระบบ (Admin PIN Gate)"""
+    if not RUPRAO_ADMIN_PIN or RUPRAO_ADMIN_PIN == "0":
+        return True
+
     valid_pins = {RUPRAO_ADMIN_PIN, "ADMIN2026", RUPRAO_PIN}
+    valid_pins.discard("")
     client_pin = (x_admin_pin or admin_pin or "").strip()
     if not client_pin or client_pin not in valid_pins:
         raise HTTPException(
@@ -438,8 +443,12 @@ def check_admin_auth(
 @app.post("/api/admin/login")
 async def admin_login(payload: dict = Body(...)):
     """ยืนยันตัวตนเข้าสู่ระบบผู้ดูแลระบบ"""
+    if not RUPRAO_ADMIN_PIN or RUPRAO_ADMIN_PIN == "0":
+        return {"success": True, "message": "เข้าสู่ระบบสำเร็จ (โหมดเปิดเสรี)", "token": "OPEN"}
+
     pin = str(payload.get("pin", "")).strip()
     valid_pins = {RUPRAO_ADMIN_PIN, "ADMIN2026", RUPRAO_PIN}
+    valid_pins.discard("")
     if pin in valid_pins:
         return {"success": True, "message": "เข้าสู่ระบบแอดมินสำเร็จ", "token": pin}
     return JSONResponse(

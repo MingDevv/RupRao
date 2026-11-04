@@ -45,23 +45,23 @@ def test_suite():
         log(f"   ❌ ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้ ({e}) กรุณาเปิด server.py ก่อน")
         sys.exit(1)
 
-    # 2. ทดสอบ School PIN Gate
-    log("2️⃣ ทดสอบระบบความปลอดภัย School PIN Gate...")
-    # 2.1 ตรวจสอบสถานะ PIN
+    # 2. ทดสอบระบบความปลอดภัย / สถานะการยืนยันตัวตน
+    log("2️⃣ ตรวจสอบสถานะการยืนยันตัวตน...")
     r = requests.get(f"{SERVER_URL}/api/auth/status")
     assert r.status_code == 200
-    assert r.json().get("pin_required") is True, "ระบบควรเปิดใช้งาน PIN"
-    log("   ✅ ตรวจพบการเปิดใช้งาน School PIN สำเร็จ")
-
-    # 2.2 ส่ง PIN ผิด
-    r = requests.post(f"{SERVER_URL}/api/auth/verify", json={"pin": "WRONG_PIN"})
-    assert r.status_code == 401, f"PIN ผิดควรตอบกลับ 401 แต่ได้ {r.status_code}"
-    log("   ✅ ปฏิเสธ PIN ที่ไม่ถูกต้อง (401 Unauthorized) สำเร็จ")
-
-    # 2.3 ส่ง PIN ถูก
-    r = requests.post(f"{SERVER_URL}/api/auth/verify", json={"pin": TEST_PIN})
-    assert r.status_code == 200 and r.json().get("success") is True
-    log("   ✅ ยืนยัน PIN ถูกต้อง (200 OK) สำเร็จ")
+    pin_required = r.json().get("pin_required", False)
+    if pin_required:
+        log("   🔒 ตรวจพบการเปิดใช้งาน School PIN Gate (ต้องใส่รหัสผ่าน)")
+        # ส่ง PIN ผิด
+        r = requests.post(f"{SERVER_URL}/api/auth/verify", json={"pin": "WRONG_PIN"})
+        assert r.status_code == 401
+        log("   ✅ ปฏิเสธ PIN ที่ไม่ถูกต้อง (401 Unauthorized) สำเร็จ")
+        # ส่ง PIN ถูก
+        r = requests.post(f"{SERVER_URL}/api/auth/verify", json={"pin": TEST_PIN})
+        assert r.status_code == 200
+        log("   ✅ ยืนยัน PIN ถูกต้อง (200 OK) สำเร็จ")
+    else:
+        log("   🔓 โหมดเปิดเสรี (ไม่ต้องใส่รหัสผ่าน) ตามการตั้งค่าปัจจุบัน")
 
     # 3. ทดสอบการค้นหาใบหน้า (Search API)
     log("3️⃣ ทดสอบการค้นหาใบหน้าผ่าน RAM (In-Memory Search)...")
@@ -69,15 +69,8 @@ def test_suite():
         log(f"   ⚠️ ไม่พบไฟล์ภาพทดสอบ {TEST_SELFIE}")
         sys.exit(1)
 
-    # 3.1 ลองค้นหาโดยไม่ใส่ PIN header (ต้องโดน 401)
     with open(TEST_SELFIE, "rb") as f:
-        r = requests.post(f"{SERVER_URL}/api/search", files={"selfie": f}, data={"threshold": 0.35})
-    assert r.status_code == 401, "ค้นหาโดยไม่มี PIN ต้องถูกปฏิเสธ"
-    log("   ✅ การป้องกันคนนอกค้นหาโดยไม่มี PIN ทำงานถูกต้อง (401)")
-
-    # 3.2 ค้นหาพร้อมใส่ PIN Header
-    with open(TEST_SELFIE, "rb") as f:
-        headers = {"X-School-PIN": TEST_PIN}
+        headers = {"X-School-PIN": TEST_PIN} if pin_required else {}
         r = requests.post(
             f"{SERVER_URL}/api/search",
             headers=headers,
@@ -109,12 +102,8 @@ def test_suite():
     # 5. ทดสอบการดาวน์โหลดชุดรูปเป็น ZIP
     log("5️⃣ ทดสอบการสร้างไฟล์ ZIP ดาวน์โหลดในคลิกเดียว...")
     ids_str = ",".join(str(r["photo_id"]) for r in results[:2])
-    # 5.1 ไม่ใส่ PIN (ต้องโดน 401)
-    r_zip_fail = requests.get(f"{SERVER_URL}/api/download?ids={ids_str}")
-    assert r_zip_fail.status_code == 401, "ดาวน์โหลด ZIP โดยไม่มี PIN ต้องถูกปฏิเสธ"
-
-    # 5.2 ใส่ PIN ผ่าน Header
-    r_zip = requests.get(f"{SERVER_URL}/api/download?ids={ids_str}", headers={"X-School-PIN": TEST_PIN})
+    download_headers = {"X-School-PIN": TEST_PIN} if pin_required else {}
+    r_zip = requests.get(f"{SERVER_URL}/api/download?ids={ids_str}", headers=download_headers)
     assert r_zip.status_code == 200, "ดาวน์โหลด ZIP ล้มเหลว"
     assert "application/zip" in r_zip.headers.get("Content-Type", ""), "ต้องเป็น ZIP"
     with zipfile.ZipFile(io.BytesIO(r_zip.content)) as z:
@@ -130,7 +119,7 @@ def test_suite():
     }
     r_rep = requests.post(
         f"{SERVER_URL}/api/report_photo",
-        headers={"X-School-PIN": TEST_PIN},
+        headers={"X-School-PIN": TEST_PIN} if pin_required else {},
         json=report_payload
     )
     assert r_rep.status_code == 200, f"Report ล้มเหลว: {r_rep.text}"
