@@ -131,7 +131,7 @@ def test_suite():
     # 7. ทดสอบ Moderation: ซ่อนรูปภาพและตรวจสอบผล
     log("7️⃣ ทดสอบฟังก์ชัน Moderation ซ่อนรูปภาพ...")
     import db
-    conn = db.get_connection("data/faces.db")
+    conn = db.get_connection(BASE / "data" / "faces.db")   # ใช้ absolute path — ไม่งั้นรันจาก cwd ไหนก็เขียนผิดไฟล์!
     db.update_report_status(conn, report_id, status="approved", hide_photo=True)
     log("   ✅ อนุมัติคำขอลบและซ่อนรูปภาพในฐานข้อมูลเรียบร้อย")
 
