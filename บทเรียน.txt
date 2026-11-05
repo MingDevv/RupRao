@@ -323,3 +323,17 @@
 - UI ใหม่ Design A ตัดเข้า index.html จริงแล้ว: hero band + step chips + สองคอลัมน์
   + face-picker + เก็บของเดิมครบ (กล้องสด, PIN, PDPA, ZIP, lightbox)
 
+[บทที่ 38] ปรับปรุงระบบไอคอนสู่ Lucide Icons (SVG) + ตรวจสอบความพร้อม Production 100% (5 พ.ย.)
+- สกิล design-taste-frontend + ui-ux-pro-max: ก้าวข้าม Emoji Slop สู่ Professional UI
+  - ปัญหาของ Emoji: หน้าตาไม่เหมือนกันในแต่ละ OS (iOS vs Android vs Windows), ขนาด scale ไม่พอดีกับ line-height, สีสันฉูดฉาดขัดกับ Design Token
+  - แก้ไข: ติดตั้ง Lucide Icons (CDN) แปลงไอคอนทั่วหน้าเป็น SVG เวกเตอร์ทั้งหมด (school, lock, settings, zap, shield-check, target, camera, upload, trash-2, users, search, sparkles, eye, download, flag ฯลฯ)
+  - เพิ่มการเรียก `lucide.createIcons()` ครบทุกจุดที่มีการ Render DOM ใหม่ (เช่น ผลการค้นหา, สถานะ PIN)
+- Accessibility & DOM Integrity:
+  - เติม `aria-label` ให้กับปุ่ม Action และไอคอนที่ไม่มีข้อความกำกับ
+  - ตรวจสอบ Tag Balance ด้วยสคริปต์อัตโนมัติ: div 92/92, section 2/2, button 19/19 เปิด-ปิดเท่ากันเป๊ะ
+- ผลการทดสอบ Production E2E บน Python 3.12 (`venv312`):
+  - รัน `test_production.py` ผ่าน 9/9 ครบทุกกระบวนการ (Server status, PIN auth, In-memory search, Thumbnails, ZIP stream, PDPA report & hide, System health)
+  - ทดสอบ API `/api/search/detect` และ `/api/search` กับรูปกลุ่มตรวจจับได้ 27 หน้า และค้นหาด้วยหน้าที่เลือกได้ถูกต้องสมบูรณ์
+- พอร์ตเซิร์ฟเวอร์เปิดทำงานปกติที่พอร์ต 8000 (`http://localhost:8000`)
+
+
