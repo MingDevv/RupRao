@@ -209,10 +209,50 @@ async def get_stats():
     return db.get_stats(conn)
 
 
+@app.post("/api/search/detect")
+async def detect_selfie_faces(
+    selfie: UploadFile = File(...),
+    authorized: bool = Depends(check_pin_auth)
+):
+    """ตรวจจับหน้าในเซลฟี่แล้วคืนภาพครอปของแต่ละหน้า (base64) ให้ผู้ใช้เลือกหน้าตัวเองก่อนค้นหา
+    (กติกาเหล็ก: ไม่บันทึกอะไรลงดิสก์ — ครอปอยู่ใน RAM แล้วส่งกลับทันที)"""
+    import base64
+    contents = await selfie.read()
+    if len(contents) > 15 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="ขนาดไฟล์เกิน 15 MB")
+    nparr = np.frombuffer(contents, np.uint8)
+    img_bgr = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+    if img_bgr is None:
+        raise HTTPException(status_code=400, detail="ไม่สามารถอ่านไฟล์รูปภาพได้ กรุณาใช้ไฟล์ JPG, PNG หรือ WebP")
+
+    faces = face_lib.detect_faces(img_bgr)
+    H, W = img_bgr.shape[:2]
+    out = []
+    for i, f in enumerate(faces):
+        x1, y1, x2, y2 = [int(v) for v in f.bbox]
+        bw, bh = x2 - x1, y2 - y1
+        mx, my = int(bw * 0.25), int(bh * 0.25)   # ขยายกรอบรอบหน้า 25% ให้เห็นบริบท
+        cx1, cy1 = max(0, x1 - mx), max(0, y1 - my)
+        cx2, cy2 = min(W, x2 + mx), min(H, y2 + my)
+        crop = img_bgr[cy1:cy2, cx1:cx2]
+        ch, cw = crop.shape[:2]
+        scale = min(1.0, 160.0 / max(1, ch))      # ย่อพอสำหรับ UI (ไม่ขยาย — บทเรียนหน้าเบลอ!)
+        if scale < 1.0:
+            crop = cv2.resize(crop, (max(1, int(cw * scale)), max(1, int(ch * scale))))
+        ok, buf = cv2.imencode(".jpg", crop, [cv2.IMWRITE_JPEG_QUALITY, 82])
+        out.append({
+            "index": i,
+            "score": round(float(f.det_score), 3),
+            "crop": ("data:image/jpeg;base64," + base64.b64encode(buf).decode("ascii")) if ok else None,
+        })
+    return {"success": True, "count": len(out), "faces": out}
+
+
 @app.post("/api/search")
 async def search_faces(
     selfie: UploadFile = File(...),
     threshold: float = Form(0.45),
+    face_index: int = Form(-1),
     authorized: bool = Depends(check_pin_auth)
 ):
     """
@@ -241,8 +281,12 @@ async def search_faces(
             }
         )
 
-    # เลือกหน้าที่คะแนนความชัดเจนสูงที่สุด
-    best_face = max(faces, key=lambda f: f.det_score)
+    # เลือกหน้า: ถ้าผู้ใช้เลือกหน้ามาจาก face-picker ให้ใช้หน้านั้น
+    # ไม่งั้นใช้หน้าที่โมเดลมั่นใจสูงสุด (พฤติกรรมเดิม)
+    if 0 <= face_index < len(faces):
+        best_face = faces[face_index]
+    else:
+        best_face = max(faces, key=lambda f: f.det_score)
 
     # 4. ทำ L2 Normalization เพื่อให้ Inner Product = Cosine Similarity
     query_emb = np.asarray(best_face.embedding, dtype=np.float32)

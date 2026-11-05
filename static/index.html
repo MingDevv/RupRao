@@ -42,10 +42,40 @@
   <style>
     body {
       font-family: 'Prompt', sans-serif;
-      background: #f8fafc;
+      background: #f1f5fb;
       min-height: 100vh;
       overflow-x: hidden;
     }
+
+    /* Design A · ฟ้าสถาบัน — Step Chips in Hero Band */
+    .step-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(255, 255, 255, 0.16);
+      padding: 7px 14px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 500;
+    }
+    .step-chip b {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: #ffffff;
+      color: #1d4ed8;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+    }
+    .step-chip.done { background: rgba(255, 255, 255, 0.32); }
+    .step-chip.active { background: rgba(255, 255, 255, 0.95); color: #1d4ed8; box-shadow: 0 4px 14px rgba(29, 78, 216, 0.35); }
+    .step-chip.active b { background: #1d4ed8; color: #fff; }
+
+    /* Face Picker Option Cards */
+    .face-opt { transition: border-color .15s ease, background-color .15s ease, transform .1s ease; }
+    .face-opt:active { transform: scale(.97); }
 
     /* Vibrant Ambient Background Orbs */
     .ambient-orb-1 {
@@ -256,37 +286,33 @@
   </header>
 
   <!-- Hero & Main Container -->
-  <main class="flex-grow max-w-5xl w-full mx-auto px-4 py-8 space-y-8 relative z-10">
+  <main class="flex-grow w-full relative z-10">
 
-    <!-- Hero Title -->
-    <div class="text-center space-y-3 max-w-2xl mx-auto">
-      <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-gradient-to-r from-blue-50 via-indigo-50 to-cyan-50 border border-sky-200 text-blue-700 text-xs font-bold shadow-xs">
-        <span class="animate-spin text-sm">✨</span>
-        <span>ระบบ AI ค้นหาภาพถ่ายอัจฉริยะ โรงเรียนเทศบาล 6 นครเชียงราย</span>
-      </div>
-      <h2 class="text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-900 leading-tight">
-        ค้นหาตัวคุณในภาพกิจกรรม <span class="gradient-text">ในเสี้ยววินาที</span> 🤳
-      </h2>
-      <p class="text-xs sm:text-sm text-slate-600 max-w-lg mx-auto leading-relaxed">
-        เพียงถ่ายเซลฟี่หรือเลือกรูปหน้าตรง 1 รูป AI จะสแกนเวกเตอร์ใบหน้า 512 มิติ และดึงภาพกิจกรรมโรงเรียนของคุณทั้งหมดออกมาทันที
-      </p>
-
-      <!-- Micro Badges -->
-      <div class="flex flex-wrap justify-center items-center gap-2 pt-1 text-[11px] font-semibold text-slate-600">
-        <span class="bg-white/80 border border-sky-200 px-3 py-1 rounded-full shadow-2xs text-sky-700 flex items-center gap-1">
-          <span>⚡</span> สแกนรวดเร็วใน 0.01 วินาที
-        </span>
-        <span class="bg-white/80 border border-emerald-200 px-3 py-1 rounded-full shadow-2xs text-emerald-700 flex items-center gap-1">
-          <span>🛡️</span> ปลอดภัยตาม PDPA (ไม่บันทึกรูปเซลฟี่)
-        </span>
-        <span class="bg-white/80 border border-indigo-200 px-3 py-1 rounded-full shadow-2xs text-indigo-700 flex items-center gap-1">
-          <span>🎯</span> InsightFace ArcFace AI
-        </span>
+    <!-- Design A · Hero Gradient Band with Step Chips -->
+    <div class="max-w-6xl mx-auto px-4 pt-6">
+      <div class="rounded-3xl overflow-hidden bg-gradient-to-r from-blue-700 via-blue-600 to-sky-500 text-white shadow-xl shadow-blue-600/25">
+        <div class="px-6 sm:px-10 py-7 sm:py-8">
+          <h2 class="text-2xl sm:text-3xl font-extrabold tracking-tight">หารูปตัวเองในงานโรงเรียน ใน 3 วินาที</h2>
+          <p class="text-white/90 text-sm mt-1.5">อัปโหลดเซลฟี่ 1 รูป — AI สแกนหาหน้าคุณจากรูปงานทั้งหมดให้เอง</p>
+          <div class="flex flex-wrap gap-2.5 mt-4">
+            <span id="step-chip-1" class="step-chip active"><b>1</b> อัปโหลดเซลฟี่</span>
+            <span id="step-chip-2" class="step-chip"><b>2</b> เลือกหน้าของคุณ</span>
+            <span id="step-chip-3" class="step-chip"><b>3</b> โหลดรูปเป็น ZIP</span>
+          </div>
+          <div class="flex flex-wrap items-center gap-2 mt-4 text-[11px] font-semibold">
+            <span class="bg-white/15 border border-white/25 px-3 py-1 rounded-full">⚡ สแกนเร็วระดับมิลลิวินาที</span>
+            <span class="bg-white/15 border border-white/25 px-3 py-1 rounded-full">🛡️ ไม่เก็บรูปเซลฟี่ (PDPA)</span>
+            <span class="bg-white/15 border border-white/25 px-3 py-1 rounded-full">🎯 ArcFace 512 มิติ</span>
+          </div>
+        </div>
       </div>
     </div>
 
+    <!-- Two-Column Workspace: Search (left) + Results (right) -->
+    <div class="max-w-6xl mx-auto px-4 pt-6 pb-10 grid grid-cols-1 lg:grid-cols-[400px_1fr] gap-6 items-start relative z-10">
+
     <!-- Main Search Card (Dual Action Mode: Live Camera OR File Upload) -->
-    <section class="glass-panel rounded-3xl p-6 sm:p-8 max-w-2xl mx-auto relative overflow-hidden shadow-2xl border-2 border-white/80">
+    <section id="search-card" class="glass-panel rounded-3xl p-5 sm:p-6 relative overflow-hidden shadow-2xl border-2 border-white/80">
       
       <!-- STATE 1: Dual Action Chooser (Shown when no selfie chosen yet) -->
       <div id="selfie-chooser-container" class="space-y-4">
@@ -349,6 +375,25 @@
         <div>
           <button type="button" id="btn-reset-selfie" onclick="resetSelfie()" class="px-4 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold text-xs border border-rose-200 transition active:scale-95 inline-flex items-center gap-1.5 shadow-2xs cursor-pointer">
             <span>🗑️ ลบรูปและเลือกใหม่</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- STATE 2.5: Face Picker (แสดงเมื่อเจอหลายใบหน้าในเซลฟี่) -->
+      <div id="face-picker-container" class="hidden mt-5 p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-blue-50 to-sky-50 border border-sky-200 space-y-4">
+        <div class="text-center">
+          <h4 class="font-extrabold text-sm text-slate-900 flex items-center justify-center gap-1.5">
+            <span>🧑‍🤝‍🧑</span> เจอใบหน้า <span id="face-count-text">0</span> หน้าในรูปนี้
+          </h4>
+          <p class="text-[11px] text-slate-500 mt-1">แตะเลือก<b class="text-blue-700">หน้าของคุณ</b> เพื่อค้นหาด้วยหน้านั้น (แม่นกว่าการเดา)</p>
+        </div>
+        <div id="face-options" class="flex flex-wrap justify-center gap-4 sm:gap-5"></div>
+        <div class="flex flex-col sm:flex-row gap-2 justify-center">
+          <button type="button" onclick="confirmFacePick()" class="px-5 py-2.5 rounded-xl bg-blue-700 hover:bg-blue-800 text-white text-xs font-bold transition shadow-md cursor-pointer">
+            🔍 ค้นหาด้วยหน้าที่เลือก
+          </button>
+          <button type="button" onclick="confirmFacePick(true)" class="px-5 py-2.5 rounded-xl bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-bold transition cursor-pointer">
+            ใช้หน้าที่ชัดที่สุด
           </button>
         </div>
       </div>
@@ -425,6 +470,7 @@
         <!-- Result Cards Rendered Dynamically -->
       </div>
     </section>
+    </div>
 
   </main>
 
@@ -597,6 +643,8 @@
   <!-- ========================================================================= -->
   <script>
     let currentSelfieBlob = null;
+    let chosenFaceIndex = -1;
+    let detectedFaces = [];
     let searchResults = [];
     let selectedPhotoIds = new Set();
     let currentFacingMode = 'user';
@@ -694,6 +742,7 @@
         document.getElementById('selfie-preview').src = e.target.result;
         document.getElementById('selfie-chooser-container').classList.add('hidden');
         document.getElementById('preview-container').classList.remove('hidden');
+        setStep(2);
 
         searchBtn.disabled = false;
         searchBtn.classList.remove('bg-slate-300', 'cursor-not-allowed');
@@ -704,10 +753,14 @@
 
     function resetSelfie() {
       currentSelfieBlob = null;
+      chosenFaceIndex = -1;
+      detectedFaces = [];
       fileInput.value = '';
       document.getElementById('selfie-preview').src = '';
       document.getElementById('preview-container').classList.add('hidden');
+      document.getElementById('face-picker-container').classList.add('hidden');
       document.getElementById('selfie-chooser-container').classList.remove('hidden');
+      setStep(1);
 
       searchBtn.disabled = true;
       searchBtn.classList.add('bg-slate-300', 'cursor-not-allowed');
@@ -844,7 +897,110 @@
     // =========================================================================
     // SEARCH EXECUTION (InsightFace ArcFace 512-dim + FAISS)
     // =========================================================================
+    // Design A — ตัวช่วยอัปเดต step chips ใน hero band
+    function setStep(n) {
+      ['1', '2', '3'].forEach((s) => {
+        const chip = document.getElementById('step-chip-' + s);
+        if (!chip) return;
+        chip.classList.remove('active', 'done');
+        if (Number(s) < n) chip.classList.add('done');
+        if (Number(s) === n) chip.classList.add('active');
+      });
+    }
+
     async function startSearch() {
+      if (!currentSelfieBlob) return;
+      hideError();
+
+      const loadingBox = document.getElementById('loading-box');
+      const statusText = document.getElementById('loading-status-text');
+      loadingBox.classList.remove('hidden');
+      searchBtn.disabled = true;
+      statusText.innerText = 'กำลังตรวจจับใบหน้าในรูปเซลฟี่ของคุณ...';
+
+      const savedPin = localStorage.getItem('ruprao_school_pin') || '';
+
+      // ขั้น 1: ตรวจจับหน้าในเซลฟี่ก่อน — เจอหลายหน้า = ให้ผู้ใช้เลือกหน้าตัวเอง (แม่นกว่าเดา)
+      try {
+        const fd = new FormData();
+        fd.append('selfie', currentSelfieBlob);
+        const res = await fetch('/api/search/detect', {
+          method: 'POST',
+          headers: savedPin ? { 'X-School-PIN': savedPin } : {},
+          body: fd
+        });
+        loadingBox.classList.add('hidden');
+        searchBtn.disabled = false;
+
+        if (res.status === 401) {
+          openPinModal();
+          showError('กรุณากรอกรหัสผ่านโรงเรียน (School PIN) เพื่อค้นหาภาพ');
+          return;
+        }
+        const data = await res.json();
+        if (!res.ok) {
+          showError(data.detail || 'เกิดข้อผิดพลาดในการตรวจจับใบหน้า');
+          return;
+        }
+        if (!data.faces || data.faces.length === 0) {
+          showError('ไม่พบใบหน้าในรูปนี้ — ลองใช้รูปที่เห็นหน้าตรงชัดและมีแสงพอครับ');
+          return;
+        }
+        if (data.faces.length === 1) {
+          runSearch(0);   // หน้าเดียว = ค้นหาเลย ไม่ต้องเลือก
+        } else {
+          showFacePicker(data.faces);
+        }
+      } catch (err) {
+        loadingBox.classList.add('hidden');
+        searchBtn.disabled = false;
+        showError('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้ กรุณาลองใหม่อีกครั้ง');
+      }
+    }
+
+    function showFacePicker(faces) {
+      detectedFaces = faces;
+      chosenFaceIndex = faces[0].index;
+      const box = document.getElementById('face-picker-container');
+      const wrap = document.getElementById('face-options');
+      document.getElementById('face-count-text').innerText = faces.length;
+      wrap.innerHTML = '';
+      faces.forEach((f) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'face-opt flex flex-col items-center gap-2 p-2 rounded-2xl border-2 cursor-pointer ' +
+          (f.index === chosenFaceIndex ? 'border-blue-700 bg-blue-50' : 'border-slate-200 bg-white hover:border-blue-400');
+        btn.innerHTML = `
+          <img src="${f.crop}" alt="ใบหน้าที่ ${f.index + 1}" class="w-20 h-20 sm:w-24 sm:h-24 rounded-full object-cover border-4 ${f.index === chosenFaceIndex ? 'border-blue-700' : 'border-white'} shadow-md">
+          <span class="text-[11px] font-bold text-slate-700">หน้าที่ ${f.index + 1}</span>
+          <span class="text-[10px] text-slate-400">ความชัด ${Math.round(f.score * 100)}%</span>`;
+        btn.addEventListener('click', () => {
+          chosenFaceIndex = f.index;
+          wrap.querySelectorAll('.face-opt').forEach((x, i) => {
+            const isSel = detectedFaces[i] && detectedFaces[i].index === chosenFaceIndex;
+            x.classList.toggle('border-blue-700', isSel);
+            x.classList.toggle('bg-blue-50', isSel);
+            x.classList.toggle('border-slate-200', !isSel);
+            x.classList.toggle('hover:border-blue-400', !isSel);
+            const img = x.querySelector('img');
+            if (img) {
+              img.classList.toggle('border-blue-700', isSel);
+              img.classList.toggle('border-white', !isSel);
+            }
+          });
+        });
+        wrap.appendChild(btn);
+      });
+      box.classList.remove('hidden');
+      box.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    function confirmFacePick(useBest = false) {
+      document.getElementById('face-picker-container').classList.add('hidden');
+      runSearch(useBest ? -1 : chosenFaceIndex);
+    }
+
+    async function runSearch(faceIndex) {
       if (!currentSelfieBlob) return;
       hideError();
 
@@ -857,7 +1013,6 @@
       searchBtn.disabled = true;
 
       const steps = [
-        'กำลังตรวจจับโครงหน้าในรูปเซลฟี่...',
         'กำลังสกัดเวกเตอร์ลายเซ็นใบหน้า 512 มิติ (ArcFace)...',
         'กำลังค้นหาเปรียบเทียบในคลังภาพโรงเรียนด้วย FAISS...',
         'กำลังประมวลผลระดับความมั่นใจ...'
@@ -871,6 +1026,7 @@
       const formData = new FormData();
       formData.append('selfie', currentSelfieBlob);
       formData.append('threshold', thresholdSlider.value);
+      formData.append('face_index', faceIndex);
 
       const savedPin = localStorage.getItem('ruprao_school_pin') || '';
 
@@ -894,7 +1050,7 @@
 
         const data = await response.json();
         if (!response.ok) {
-          showError(data.error || 'เกิดข้อผิดพลาดในการประมวลผล กรุณาลองใหม่อีกครั้ง');
+          showError(data.error || data.detail || 'เกิดข้อผิดพลาดในการประมวลผล กรุณาลองใหม่อีกครั้ง');
           return;
         }
 
@@ -921,6 +1077,7 @@
 
       resultsSection.classList.remove('hidden');
       countBadge.innerText = searchResults.length;
+      setStep(3);
 
       // Populate album filter
       const albums = [...new Set(searchResults.map(r => r.event_name))];
