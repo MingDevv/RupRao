@@ -155,10 +155,11 @@ def test_suite():
     assert sample_pid not in after_ids, "รูปที่ถูกสั่งซ่อนต้องไม่ปรากฏในผลค้นหา"
     log(f"   ✅ ยืนยัน: รูป ID #{sample_pid} ไม่แสดงในผลการค้นหาอีกต่อไป")
 
-    # คืนสถานะรูปภาพกลับมาเพื่อให้ข้อมูลทดสอบสมบูรณ์
+    # คืนสถานะรูปภาพและลบคำขอทดสอบออกจากตาราง เพื่อไม่ให้ค้างในแดชบอร์ด
     db.set_photo_hidden(conn, sample_pid, is_hidden=0)
-    db.update_report_status(conn, report_id, status="rejected", hide_photo=False)
-    log(f"   ♻️ คืนสถานะรูป ID #{sample_pid} ให้พร้อมใช้งานเหมือนเดิมเรียบร้อย")
+    conn.execute("DELETE FROM reports WHERE id = ?", (report_id,))
+    conn.commit()
+    log(f"   ♻️ คืนสถานะรูป ID #{sample_pid} และล้างประวัติคำร้องทดสอบเรียบร้อย")
 
     # 8. ทดสอบ Endpoint ตรวจสอบสุขภาพระบบ (/api/health)
     log("8️⃣ ตรวจสอบสถานะความสมบูรณ์ของระบบ (/api/health)...")
