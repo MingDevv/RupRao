@@ -79,73 +79,24 @@
     .face-opt { transition: border-color .15s ease, background-color .15s ease, transform .1s ease; }
     .face-opt:active { transform: scale(.97); }
 
-    /* Vibrant Ambient Background Orbs */
-    .ambient-orb-1 {
-      position: fixed;
-      top: -12%;
-      left: -8%;
-      width: 55vw;
-      height: 55vw;
-      border-radius: 50%;
-      background: radial-gradient(circle, rgba(14, 165, 233, 0.28) 0%, rgba(99, 102, 241, 0.18) 50%, transparent 70%);
-      filter: blur(70px);
-      z-index: 0;
-      pointer-events: none;
-      animation: floatOrb1 20s ease-in-out infinite alternate;
+    /* Clean Body Background — Subtle & High Contrast (Anti-Slop) */
+    body {
+      background-color: #f8fafc;
+      background-image: radial-gradient(at 50% 0%, rgba(224, 242, 254, 0.6) 0%, transparent 60%);
+      background-attachment: fixed;
     }
 
-    .ambient-orb-2 {
-      position: fixed;
-      top: 25%;
-      right: -10%;
-      width: 50vw;
-      height: 50vw;
-      border-radius: 50%;
-      background: radial-gradient(circle, rgba(99, 102, 241, 0.22) 0%, rgba(244, 63, 94, 0.15) 50%, transparent 70%);
-      filter: blur(80px);
-      z-index: 0;
-      pointer-events: none;
-      animation: floatOrb2 24s ease-in-out infinite alternate-reverse;
-    }
-
-    .ambient-orb-3 {
-      position: fixed;
-      bottom: -15%;
-      left: 15%;
-      width: 48vw;
-      height: 48vw;
-      border-radius: 50%;
-      background: radial-gradient(circle, rgba(16, 185, 129, 0.22) 0%, rgba(6, 182, 212, 0.18) 50%, transparent 70%);
-      filter: blur(75px);
-      z-index: 0;
-      pointer-events: none;
-      animation: floatOrb3 18s ease-in-out infinite alternate;
-    }
-
-    @keyframes floatOrb1 {
-      0% { transform: translate(0, 0) scale(1); }
-      100% { transform: translate(60px, 45px) scale(1.1); }
-    }
-    @keyframes floatOrb2 {
-      0% { transform: translate(0, 0) scale(1); }
-      100% { transform: translate(-50px, 40px) scale(1.08); }
-    }
-    @keyframes floatOrb3 {
-      0% { transform: translate(0, 0) scale(1); }
-      100% { transform: translate(40px, -50px) scale(1.06); }
-    }
-
-    /* Glassmorphic Panels with Colorful Borders */
+    /* Glassmorphic Panels with Subtle Borders */
     .glass-panel {
-      background: rgba(255, 255, 255, 0.94);
+      background: rgba(255, 255, 255, 0.96);
       backdrop-filter: blur(20px);
       -webkit-backdrop-filter: blur(20px);
-      border: 1px solid rgba(255, 255, 255, 0.9);
-      box-shadow: 0 20px 45px -15px rgba(2, 132, 199, 0.12), 0 0 0 1px rgba(56, 189, 248, 0.15);
+      border: 1px solid rgba(226, 232, 240, 0.9);
+      box-shadow: 0 10px 30px -10px rgba(15, 23, 42, 0.08), 0 0 0 1px rgba(226, 232, 240, 0.8);
     }
 
     .glass-dropzone {
-      background: linear-gradient(135deg, rgba(255, 255, 255, 0.92) 0%, rgba(240, 249, 255, 0.95) 100%);
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.96) 0%, rgba(240, 249, 255, 0.95) 100%);
       transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
     }
     .glass-dropzone:hover, .glass-dropzone.drag-active {
@@ -155,21 +106,34 @@
       box-shadow: 0 14px 30px -8px rgba(14, 165, 233, 0.28);
     }
 
-    /* Modal Architecture */
+    /* Modal Architecture — Google Photos Style */
     .app-modal {
       position: fixed;
       inset: 0;
       z-index: 100;
-      background: rgba(15, 23, 42, 0.82);
-      backdrop-filter: blur(14px);
-      -webkit-backdrop-filter: blur(14px);
-      display: none;
+      background: rgba(15, 23, 42, 0.72);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      display: flex;
       align-items: center;
       justify-content: center;
       padding: 1rem;
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      transition: opacity 0.22s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.22s;
     }
     .app-modal.active {
-      display: flex !important;
+      opacity: 1;
+      visibility: visible;
+      pointer-events: auto;
+    }
+    .app-modal > div {
+      transform: scale(0.95) translateY(8px);
+      transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .app-modal.active > div {
+      transform: scale(1) translateY(0);
     }
 
     /* Scan Beam Animation */
@@ -237,12 +201,7 @@
     }
   </style>
 </head>
-<body class="text-slate-800 flex flex-col relative antialiased selection:bg-brand-500 selection:text-white">
-
-  <!-- Ambient Light Orbs -->
-  <div class="ambient-orb-1"></div>
-  <div class="ambient-orb-2"></div>
-  <div class="ambient-orb-3"></div>
+<body class="text-slate-800 flex flex-col relative antialiased selection:bg-brand-500 selection:text-white min-h-screen">
 
   <!-- Colorful Top Navigation Bar -->
   <header class="bg-white/85 backdrop-blur-xl border-b border-sky-100 sticky top-0 z-40 shadow-xs relative">
@@ -487,9 +446,9 @@
               <span class="text-slate-500 text-sm font-normal">รูป</span>
             </h3>
             <!-- Quick Edit / Add Name Button (Google Photos style) -->
-            <button type="button" id="btn-edit-results-name" onclick="promptEditPersonName()" class="px-2.5 py-1 text-[11px] font-bold rounded-xl bg-sky-50 hover:bg-sky-100 text-blue-700 border border-sky-200 transition inline-flex items-center gap-1.5 shadow-2xs cursor-pointer active:scale-95" title="ตั้งชื่อหรือเปลี่ยนชื่อบุคคลบนรูป">
-              <i data-lucide="tag" class="w-3.5 h-3.5"></i>
-              <span id="btn-edit-results-name-text">ตั้งชื่อหน้า</span>
+            <button type="button" id="btn-edit-results-name" onclick="openNameModal()" class="px-3 py-1.5 text-xs font-bold rounded-xl bg-sky-50 hover:bg-sky-100 text-blue-700 border border-sky-200 transition inline-flex items-center gap-1.5 shadow-2xs cursor-pointer active:scale-95" title="ตั้งชื่อบุคคลบนรูป (Google Photos style)">
+              <i data-lucide="user-plus" class="w-3.5 h-3.5"></i>
+              <span id="btn-edit-results-name-text">+ เพิ่มชื่อบุคคลนี้</span>
             </button>
           </div>
           <p class="text-xs text-slate-500 font-medium mt-0.5">เรียงลำดับจากภาพที่มีคะแนนความมั่นใจสูงสุด</p>
@@ -534,8 +493,8 @@
   <!-- MODALS -->
 
   <!-- 1. Dedicated Live Camera Modal (Isolated, Fullscreen/Bounded, No Double-Trigger) -->
-  <div id="camera-modal" class="app-modal">
-    <div class="bg-slate-950 text-white rounded-3xl max-w-sm w-full overflow-hidden shadow-2xl border border-slate-800 flex flex-col relative" style="max-height: 88dvh;">
+  <div id="camera-modal" class="app-modal" onclick="closeCameraModal()">
+    <div class="bg-slate-950 text-white rounded-3xl max-w-sm w-full overflow-hidden shadow-2xl border border-slate-800 flex flex-col relative" style="max-height: 88dvh;" onclick="event.stopPropagation()">
       
       <!-- Camera Modal Header -->
       <div class="px-4 py-3 flex items-center justify-between border-b border-slate-800 bg-slate-900">
@@ -598,8 +557,8 @@
   </div>
 
   <!-- 2. School PIN Gate Modal -->
-  <div id="pin-modal" class="app-modal">
-    <div class="bg-white rounded-3xl max-w-sm w-full p-6 sm:p-8 shadow-2xl border border-slate-200 relative space-y-5 text-center">
+  <div id="pin-modal" class="app-modal" onclick="closePinModal()">
+    <div class="bg-white rounded-3xl max-w-sm w-full p-6 sm:p-8 shadow-2xl border border-slate-200 relative space-y-5 text-center" onclick="event.stopPropagation()">
       <div class="w-14 h-14 mx-auto rounded-2xl bg-gradient-to-tr from-blue-600 to-cyan-400 text-white flex items-center justify-center shadow-md shadow-blue-500/25">
         <i data-lucide="key-round" class="w-7 h-7"></i>
       </div>
@@ -623,8 +582,8 @@
   </div>
 
   <!-- 3. PDPA Report / Photo Removal Request Modal -->
-  <div id="report-modal" class="app-modal">
-    <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4">
+  <div id="report-modal" class="app-modal" onclick="closeReportModal()">
+    <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4" onclick="event.stopPropagation()">
       <div class="flex items-center justify-between pb-3 border-b border-slate-100">
         <h4 class="font-bold text-slate-900 text-sm flex items-center gap-1.5">
           <span class="inline-flex"><i data-lucide="flag" class="w-4 h-4 text-rose-500"></i></span>
@@ -659,19 +618,110 @@
     </div>
   </div>
 
-  <!-- 4. High-Res Image Lightbox Modal -->
+  <!-- 4. High-Res Image Lightbox Modal with Google Photos Controls -->
   <div id="image-modal" class="app-modal" onclick="closeImageModal()">
     <div class="relative max-w-4xl w-full flex flex-col items-center" onclick="event.stopPropagation()">
-      <button type="button" onclick="closeImageModal()" aria-label="ปิด" class="absolute top-4 right-4 z-20 w-11 h-11 rounded-full bg-slate-900/80 backdrop-blur-md hover:bg-slate-900 text-white flex items-center justify-center shadow-lg cursor-pointer"><i data-lucide="x" class="w-5 h-5"></i></button>
-      <img id="modal-img" src="" alt="Full view" class="max-h-[75vh] object-contain rounded-2xl shadow-2xl">
+      <!-- Close button -->
+      <button type="button" onclick="closeImageModal()" aria-label="ปิดรูปภาพ" class="absolute top-4 right-4 z-30 w-11 h-11 rounded-full bg-slate-900/80 backdrop-blur-md hover:bg-slate-900 text-white flex items-center justify-center shadow-lg cursor-pointer transition active:scale-95">
+        <i data-lucide="x" class="w-5 h-5"></i>
+      </button>
+
+      <!-- Prev button -->
+      <button type="button" id="lightbox-prev-btn" onclick="lightboxPrev()" aria-label="รูปก่อนหน้า" class="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 z-30 w-11 h-11 rounded-full bg-slate-900/80 backdrop-blur-md hover:bg-slate-900 text-white flex items-center justify-center shadow-lg cursor-pointer transition active:scale-95">
+        <i data-lucide="chevron-left" class="w-6 h-6"></i>
+      </button>
+
+      <!-- Next button -->
+      <button type="button" id="lightbox-next-btn" onclick="lightboxNext()" aria-label="รูปถัดไป" class="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 z-30 w-11 h-11 rounded-full bg-slate-900/80 backdrop-blur-md hover:bg-slate-900 text-white flex items-center justify-center shadow-lg cursor-pointer transition active:scale-95">
+        <i data-lucide="chevron-right" class="w-6 h-6"></i>
+      </button>
+
+      <!-- Main Photo Display -->
+      <img id="modal-img" src="" alt="Full view" class="max-h-[72vh] object-contain rounded-2xl shadow-2xl">
+      
       <!-- Person Name & Metadata Tags (Google Photos style) -->
-      <div id="modal-tags" class="mt-3 flex flex-wrap items-center justify-center gap-2"></div>
+      <div id="modal-tags" class="mt-3.5 flex flex-wrap items-center justify-center gap-2"></div>
+      
+      <!-- Download Full Res Button -->
       <div class="mt-3 flex items-center gap-3">
-        <a id="modal-download-link" href="#" download class="px-5 py-2.5 bg-gradient-to-r from-blue-600 to-cyan-500 hover:opacity-95 text-white text-xs font-bold rounded-xl shadow-md transition flex items-center gap-1.5">
+        <a id="modal-download-link" href="#" download class="px-5 py-2.5 bg-gradient-to-r from-blue-600 to-cyan-500 hover:opacity-95 text-white text-xs font-bold rounded-xl shadow-md transition flex items-center gap-1.5 cursor-pointer">
           <span class="inline-flex"><i data-lucide="download" class="w-4 h-4"></i></span>
           <span>ดาวน์โหลดรูปความละเอียดเต็ม</span>
         </a>
       </div>
+    </div>
+  </div>
+
+  <!-- 5. Google Photos Style Person Naming Modal -->
+  <div id="name-modal" class="app-modal" onclick="closeNameModal()">
+    <div class="bg-white rounded-3xl max-w-sm sm:max-w-md w-full p-6 sm:p-7 shadow-2xl border border-slate-100 relative space-y-5" onclick="event.stopPropagation()">
+      
+      <!-- Top Close Button -->
+      <button type="button" onclick="closeNameModal()" aria-label="ปิด" class="absolute top-4 right-4 w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 flex items-center justify-center transition cursor-pointer">
+        <i data-lucide="x" class="w-4 h-4"></i>
+      </button>
+
+      <!-- Circular Avatar Container (Face Crop / Icon) -->
+      <div class="text-center pt-1">
+        <div class="relative inline-block w-20 h-20 sm:w-24 sm:h-24 mx-auto">
+          <img id="name-modal-avatar-img" src="" alt="Face crop" class="w-full h-full rounded-full object-cover ring-4 ring-sky-100 shadow-md hidden">
+          <div id="name-modal-avatar-fallback" class="w-full h-full rounded-full bg-gradient-to-tr from-blue-100 via-sky-50 to-indigo-100 text-blue-600 flex items-center justify-center ring-4 ring-sky-100 shadow-md">
+            <i data-lucide="user" class="w-10 h-10 text-blue-600"></i>
+          </div>
+          <span class="absolute bottom-0 right-0 w-7 h-7 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-md border-2 border-white">
+            <i data-lucide="tag" class="w-3.5 h-3.5"></i>
+          </span>
+        </div>
+      </div>
+
+      <!-- Title & Subtitle -->
+      <div class="text-center space-y-1">
+        <h3 class="text-lg font-extrabold text-slate-900 tracking-tight" id="name-modal-title">ตั้งชื่อบุคคลนี้</h3>
+        <p class="text-xs text-slate-500 leading-relaxed max-w-xs mx-auto">
+          ตั้งชื่อเพื่อให้ RupRao จดจำและติดป้ายชื่อบุคคลในทุกภาพโดยอัตโนมัติ (Google Photos style)
+        </p>
+      </div>
+
+      <!-- Input Field -->
+      <div class="space-y-1.5">
+        <label for="name-modal-input" class="text-xs font-bold text-slate-700 flex items-center justify-between">
+          <span>ชื่อบุคคล / นักเรียน</span>
+          <span class="text-[10px] text-slate-400 font-normal">สูงสุด 30 ตัวอักษร</span>
+        </label>
+        <div class="relative">
+          <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+            <i data-lucide="smile" class="w-4 h-4"></i>
+          </div>
+          <input type="text" id="name-modal-input" maxlength="30" placeholder="พิมพ์ชื่อ เช่น กวิน, หมิงหมิง, อ.สมชาย..." 
+            class="w-full text-sm font-semibold pl-10 pr-10 py-3 rounded-2xl bg-slate-50 border border-slate-200 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition shadow-2xs text-slate-800 placeholder:text-slate-400 placeholder:font-normal"
+            onkeydown="if(event.key==='Enter') handleNameModalSave()">
+          <button type="button" id="name-modal-clear-btn" onclick="clearNameModalInput()" class="hidden absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 cursor-pointer" aria-label="ล้างข้อความ">
+            <i data-lucide="x" class="w-4 h-4"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Recent Names Suggestion Chips -->
+      <div id="recent-names-container" class="space-y-1.5 hidden">
+        <p class="text-[11px] font-semibold text-slate-400">ชื่อที่เคยบันทึกล่าสุด:</p>
+        <div id="recent-names-list" class="flex flex-wrap gap-1.5"></div>
+      </div>
+
+      <!-- Modal Actions -->
+      <div class="flex items-center justify-between gap-2 pt-2 border-t border-slate-100">
+        <button type="button" id="name-modal-delete-btn" onclick="handleNameModalDelete()" class="hidden px-3.5 py-2.5 rounded-xl text-xs font-bold text-rose-600 hover:bg-rose-50 transition border border-rose-200 cursor-pointer items-center gap-1.5">
+          <i data-lucide="trash-2" class="w-3.5 h-3.5"></i> ลบชื่อออก
+        </button>
+        <div class="flex items-center gap-2 ml-auto">
+          <button type="button" onclick="closeNameModal()" class="px-4 py-2.5 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 transition cursor-pointer">
+            ยกเลิก
+          </button>
+          <button type="button" onclick="handleNameModalSave()" class="px-5 py-2.5 rounded-xl text-xs font-extrabold text-white bg-gradient-to-r from-blue-600 to-cyan-500 hover:opacity-95 shadow-md shadow-blue-500/25 transition cursor-pointer inline-flex items-center gap-1.5">
+            <i data-lucide="check" class="w-4 h-4"></i> บันทึกชื่อ
+          </button>
+        </div>
+      </div>
+
     </div>
   </div>
 
@@ -726,15 +776,20 @@
     function setPersonName(name) {
       const input = document.getElementById('person-name-input');
       const clearBtn = document.getElementById('btn-clear-name');
-      if (input) input.value = name || '';
-      if (name) {
-        localStorage.setItem('ruprao_person_name', name);
+      const cleanName = (name || '').trim();
+
+      if (input) input.value = cleanName;
+      if (cleanName) {
+        localStorage.setItem('ruprao_person_name', cleanName);
         if (clearBtn) clearBtn.classList.remove('hidden');
+        saveToRecentNames(cleanName);
       } else {
         localStorage.removeItem('ruprao_person_name');
         if (clearBtn) clearBtn.classList.add('hidden');
       }
+
       updateResultsHeader();
+
       if (searchResults && searchResults.length > 0) {
         const selected = document.getElementById('album-filter').value;
         if (selected === 'all') {
@@ -743,33 +798,163 @@
           renderFilteredCards(searchResults.filter(r => r.event_name === selected));
         }
       }
+
+      if (currentLightboxPhotoId) {
+        updateLightboxTags(currentLightboxPhotoId);
+      }
     }
 
     function clearPersonName() {
       setPersonName('');
     }
 
-    function promptEditPersonName() {
-      const current = getPersonName();
-      const input = prompt('🏷️ ตั้งชื่อบุคคลสำหรับรูปหน้านี้ (เช่น กวิน, หมิงหมิง):', current || '');
-      if (input !== null) {
-        setPersonName(input.trim());
+    function getRecentNames() {
+      try {
+        const raw = localStorage.getItem('ruprao_recent_names');
+        return raw ? JSON.parse(raw) : [];
+      } catch (e) {
+        return [];
       }
+    }
+
+    function saveToRecentNames(name) {
+      if (!name) return;
+      try {
+        let recents = getRecentNames().filter(n => n.toLowerCase() !== name.toLowerCase());
+        recents.unshift(name);
+        recents = recents.slice(0, 5); // เก็บ 5 ชื่อล่าสุด
+        localStorage.setItem('ruprao_recent_names', JSON.stringify(recents));
+      } catch (e) {}
+    }
+
+    function openNameModal() {
+      const current = getPersonName();
+      const modalInput = document.getElementById('name-modal-input');
+      const modalTitle = document.getElementById('name-modal-title');
+      const deleteBtn = document.getElementById('name-modal-delete-btn');
+      const clearBtn = document.getElementById('name-modal-clear-btn');
+      const avatarImg = document.getElementById('name-modal-avatar-img');
+      const avatarFallback = document.getElementById('name-modal-avatar-fallback');
+
+      modalInput.value = current || '';
+      if (current) {
+        modalTitle.innerText = `แก้ไขชื่อ "${current}"`;
+        deleteBtn.classList.remove('hidden');
+        deleteBtn.classList.add('inline-flex');
+        clearBtn.classList.remove('hidden');
+      } else {
+        modalTitle.innerText = 'ตั้งชื่อบุคคลนี้';
+        deleteBtn.classList.add('hidden');
+        deleteBtn.classList.remove('inline-flex');
+        clearBtn.classList.add('hidden');
+      }
+
+      // Avatar setup: ดึง crop หน้าจาก selfie หรือรูปตัวอย่าง
+      let avatarUrl = '';
+      if (chosenFaceIndex >= 0 && detectedFaces && detectedFaces[chosenFaceIndex]) {
+        avatarUrl = detectedFaces[chosenFaceIndex].crop;
+      } else {
+        const preview = document.getElementById('selfie-preview');
+        if (preview && preview.src && preview.src.length > 20) {
+          avatarUrl = preview.src;
+        }
+      }
+
+      if (avatarUrl) {
+        avatarImg.src = avatarUrl;
+        avatarImg.classList.remove('hidden');
+        avatarFallback.classList.add('hidden');
+      } else {
+        avatarImg.classList.add('hidden');
+        avatarFallback.classList.remove('hidden');
+      }
+
+      renderRecentNamesChips();
+      document.getElementById('name-modal').classList.add('active');
+
+      setTimeout(() => {
+        modalInput.focus();
+        modalInput.select();
+      }, 100);
+    }
+
+    function closeNameModal() {
+      document.getElementById('name-modal').classList.remove('active');
+    }
+
+    function clearNameModalInput() {
+      const input = document.getElementById('name-modal-input');
+      input.value = '';
+      input.focus();
+      document.getElementById('name-modal-clear-btn').classList.add('hidden');
+    }
+
+    function handleNameModalSave() {
+      const input = document.getElementById('name-modal-input');
+      setPersonName(input.value);
+      closeNameModal();
+    }
+
+    function handleNameModalDelete() {
+      setPersonName('');
+      closeNameModal();
+    }
+
+    function selectRecentName(name) {
+      const input = document.getElementById('name-modal-input');
+      input.value = name;
+      document.getElementById('name-modal-clear-btn').classList.remove('hidden');
+      input.focus();
+    }
+
+    function renderRecentNamesChips() {
+      const container = document.getElementById('recent-names-container');
+      const list = document.getElementById('recent-names-list');
+      const recents = getRecentNames();
+      if (!recents || recents.length === 0) {
+        container.classList.add('hidden');
+        return;
+      }
+      container.classList.remove('hidden');
+      list.innerHTML = '';
+      recents.forEach(name => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 hover:bg-sky-50 text-slate-700 hover:text-blue-700 border border-slate-200 hover:border-sky-300 transition cursor-pointer active:scale-95';
+        btn.innerText = name;
+        btn.onclick = () => selectRecentName(name);
+        list.appendChild(btn);
+      });
+    }
+
+    function promptEditPersonName() {
+      openNameModal();
     }
 
     function updateResultsHeader() {
       const name = getPersonName();
       const prefixEl = document.getElementById('results-heading-prefix');
       const btnNameText = document.getElementById('btn-edit-results-name-text');
+      const btn = document.getElementById('btn-edit-results-name');
+
       if (prefixEl) {
         if (name) {
-          prefixEl.innerHTML = `<i data-lucide="party-popper" class="w-5 h-5 text-blue-600"></i> <span>พบภาพของ <b class="text-blue-700">"${escapeHtml(name)}"</b> ทั้งหมด</span>`;
+          prefixEl.innerHTML = `<i data-lucide="user-check" class="w-5 h-5 text-blue-600"></i> <span>พบภาพของ <b class="text-blue-700 font-black">"${escapeHtml(name)}"</b> ทั้งหมด</span>`;
         } else {
           prefixEl.innerHTML = `<i data-lucide="party-popper" class="w-5 h-5 text-blue-600"></i> <span>พบภาพของคุณทั้งหมด</span>`;
         }
       }
       if (btnNameText) {
-        btnNameText.innerText = name ? `เปลี่ยนชื่อ (${name})` : 'ตั้งชื่อหน้า';
+        btnNameText.innerText = name ? `ชื่อ: ${name}` : '+ เพิ่มชื่อบุคคลนี้';
+      }
+      if (btn) {
+        if (name) {
+          btn.className = 'px-3 py-1.5 text-xs font-bold rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 transition inline-flex items-center gap-1.5 shadow-2xs cursor-pointer active:scale-95';
+          btn.title = `แตะเพื่อแก้ไขชื่อ "${name}" (Google Photos style)`;
+        } else {
+          btn.className = 'px-3 py-1.5 text-xs font-bold rounded-xl bg-sky-50 hover:bg-sky-100 text-blue-700 border border-sky-200 transition inline-flex items-center gap-1.5 shadow-2xs cursor-pointer active:scale-95';
+          btn.title = 'ตั้งชื่อบุคคลบนรูป (Google Photos style)';
+        }
       }
       if (window.lucide) lucide.createIcons();
     }
@@ -796,6 +981,7 @@
           if (val) {
             localStorage.setItem('ruprao_person_name', val);
             if (btnClearName) btnClearName.classList.remove('hidden');
+            saveToRecentNames(val);
           } else {
             localStorage.removeItem('ruprao_person_name');
             if (btnClearName) btnClearName.classList.add('hidden');
@@ -808,6 +994,16 @@
             } else {
               renderFilteredCards(searchResults.filter(r => r.event_name === selected));
             }
+          }
+        });
+      }
+
+      const modalInput = document.getElementById('name-modal-input');
+      const modalClearBtn = document.getElementById('name-modal-clear-btn');
+      if (modalInput) {
+        modalInput.addEventListener('input', () => {
+          if (modalClearBtn) {
+            modalClearBtn.classList.toggle('hidden', modalInput.value.length === 0);
           }
         });
       }
@@ -1286,11 +1482,16 @@
 
             <!-- Person Name Badge (Google Photos Style) -->
             ${currentPersonName ? `
-            <div class="absolute top-2.5 left-9 z-10 bg-slate-900/85 backdrop-blur-md text-white text-[10px] font-bold px-2.5 py-0.5 rounded-full border border-white/20 flex items-center gap-1 shadow-md max-w-[105px] sm:max-w-[130px] truncate" title="${escapeHtml(currentPersonName)}">
+            <button type="button" onclick="event.stopPropagation(); openNameModal();" class="absolute top-2.5 left-9 z-10 bg-slate-900/85 hover:bg-blue-600 backdrop-blur-md text-white text-[10px] font-bold px-2.5 py-0.5 rounded-full border border-white/20 flex items-center gap-1 shadow-md max-w-[105px] sm:max-w-[130px] truncate transition cursor-pointer active:scale-95" title="แตะเพื่อแก้ไขชื่อ (${escapeHtml(currentPersonName)})">
               <i data-lucide="user" class="w-3 h-3 text-cyan-400 flex-none"></i>
               <span class="truncate">${escapeHtml(currentPersonName)}</span>
-            </div>
-            ` : ''}
+            </button>
+            ` : `
+            <button type="button" onclick="event.stopPropagation(); openNameModal();" class="absolute top-2.5 left-9 z-10 bg-black/45 hover:bg-blue-600 backdrop-blur-xs text-white/90 text-[10px] font-medium px-2 py-0.5 rounded-full border border-white/20 flex items-center gap-1 transition opacity-0 group-hover:opacity-100 cursor-pointer active:scale-95" title="ตั้งชื่อบุคคลนี้ (Google Photos)">
+              <i data-lucide="user-plus" class="w-3 h-3"></i>
+              <span>+ ใส่ชื่อ</span>
+            </button>
+            `}
 
             <!-- Similarity Badge -->
             <div class="absolute top-2.5 right-2.5 ${badgeColor} text-white text-[10px] font-extrabold px-2.5 py-0.5 rounded-full flex items-center gap-1 shadow-md">
@@ -1305,13 +1506,13 @@
 
           <!-- Card Actions -->
           <div class="p-2.5 flex items-center justify-between gap-1.5 bg-white border-t border-slate-100">
-            <button type="button" onclick="openImageModal('${item.photo_url}', ${item.photo_id})" class="flex-1 py-1.5 px-2 text-[11px] font-bold text-slate-700 hover:text-blue-700 hover:bg-sky-50 rounded-lg transition flex items-center justify-center gap-1 cursor-pointer">
+            <button type="button" onclick="openImageModal('${item.photo_url}', ${item.photo_id})" class="flex-1 min-h-[36px] py-1.5 px-2 text-[11px] font-bold text-slate-700 hover:text-blue-700 hover:bg-sky-50 rounded-lg transition flex items-center justify-center gap-1 cursor-pointer">
               <span class="inline-flex items-center gap-1"><i data-lucide="eye" class="w-3.5 h-3.5"></i> ดูรูปเต็ม</span>
             </button>
-            <a href="${item.photo_url}" download aria-label="ดาวน์โหลดรูปนี้" class="py-1.5 px-2.5 text-[11px] font-bold text-blue-600 hover:bg-sky-50 rounded-lg transition inline-flex items-center justify-center" title="ดาวน์โหลดรูปนี้">
+            <a href="${item.photo_url}" download aria-label="ดาวน์โหลดรูปนี้" class="min-h-[36px] min-w-[36px] py-1.5 px-2.5 text-[11px] font-bold text-blue-600 hover:bg-sky-50 rounded-lg transition inline-flex items-center justify-center" title="ดาวน์โหลดรูปนี้">
               <i data-lucide="download" class="w-4 h-4"></i>
             </a>
-            <button type="button" onclick="openReportModal(${item.photo_id}, '${item.thumb_url}')" aria-label="แจ้งขอลบรูป (PDPA)" class="py-1.5 px-2 text-[11px] text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer" title="แจ้งขอลบรูป (PDPA)">
+            <button type="button" onclick="openReportModal(${item.photo_id}, '${item.thumb_url}')" aria-label="แจ้งขอลบรูป (PDPA)" class="min-h-[36px] min-w-[36px] py-1.5 px-2 text-[11px] text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer flex items-center justify-center" title="แจ้งขอลบรูป (PDPA)">
               <i data-lucide="flag" class="w-4 h-4"></i>
             </button>
           </div>
@@ -1394,32 +1595,96 @@
     }
 
     // =========================================================================
-    // MODAL HANDLERS
+    // MODAL & LIGHTBOX HANDLERS (Google Photos Style)
     // =========================================================================
-    function openImageModal(url, photoId) {
-      document.getElementById('modal-img').src = url;
-      document.getElementById('modal-download-link').href = url;
+    let currentLightboxPhotoId = null;
 
-      const modalTags = document.getElementById('modal-tags');
-      if (modalTags) {
-        const item = searchResults.find(r => r.photo_id === photoId);
-        const name = getPersonName();
-        let tagsHtml = '';
-        if (name) {
-          tagsHtml += `<span class="bg-blue-600/90 text-white backdrop-blur-md px-3 py-1 rounded-full text-xs font-bold inline-flex items-center gap-1.5 shadow-md border border-white/20"><i data-lucide="user" class="w-3.5 h-3.5 text-cyan-300"></i> ${escapeHtml(name)}</span>`;
-        }
-        if (item) {
-          tagsHtml += `<span class="bg-slate-800/90 text-slate-200 backdrop-blur-md px-3 py-1 rounded-full text-xs font-medium inline-flex items-center gap-1.5 shadow-md border border-white/10"><i data-lucide="folder" class="w-3.5 h-3.5 text-amber-400"></i> ${escapeHtml(item.event_name)}</span>`;
-          tagsHtml += `<span class="bg-emerald-600/90 text-white backdrop-blur-md px-3 py-1 rounded-full text-xs font-bold inline-flex items-center gap-1.5 shadow-md border border-white/20"><i data-lucide="check-circle-2" class="w-3.5 h-3.5"></i> ความมั่นใจ ${item.similarity_percent}%</span>`;
-        }
-        modalTags.innerHTML = tagsHtml;
-        if (window.lucide) lucide.createIcons();
-      }
+    function openImageModal(url, photoId) {
+      currentLightboxPhotoId = photoId;
+      const modalImg = document.getElementById('modal-img');
+      const downloadLink = document.getElementById('modal-download-link');
+
+      modalImg.src = url;
+      downloadLink.href = url;
+
+      updateLightboxTags(photoId);
+      updateLightboxNavButtons();
+
       document.getElementById('image-modal').classList.add('active');
     }
 
     function closeImageModal() {
       document.getElementById('image-modal').classList.remove('active');
+      currentLightboxPhotoId = null;
+    }
+
+    function updateLightboxTags(photoId) {
+      const modalTags = document.getElementById('modal-tags');
+      if (!modalTags) return;
+
+      const item = searchResults.find(r => r.photo_id === photoId);
+      const name = getPersonName();
+      let tagsHtml = '';
+
+      if (name) {
+        tagsHtml += `
+          <button type="button" onclick="openNameModal()" class="bg-blue-600/90 hover:bg-blue-500 text-white backdrop-blur-md px-3.5 py-1.5 rounded-full text-xs font-bold inline-flex items-center gap-1.5 shadow-md border border-white/20 transition cursor-pointer active:scale-95" title="แตะเพื่อแก้ไขชื่อบุคคลนี้">
+            <i data-lucide="user" class="w-3.5 h-3.5 text-cyan-300"></i>
+            <span>${escapeHtml(name)}</span>
+            <i data-lucide="edit-3" class="w-3 h-3 text-white/70"></i>
+          </button>
+        `;
+      } else {
+        tagsHtml += `
+          <button type="button" onclick="openNameModal()" class="bg-white/20 hover:bg-white/30 text-white backdrop-blur-md px-3.5 py-1.5 rounded-full text-xs font-bold inline-flex items-center gap-1.5 shadow-md border border-white/20 transition cursor-pointer active:scale-95" title="แตะเพื่อตั้งชื่อบุคคลนี้ (Google Photos)">
+            <i data-lucide="user-plus" class="w-3.5 h-3.5 text-cyan-300"></i>
+            <span>+ ตั้งชื่อบุคคลนี้</span>
+          </button>
+        `;
+      }
+
+      if (item) {
+        tagsHtml += `<span class="bg-slate-800/90 text-slate-200 backdrop-blur-md px-3.5 py-1.5 rounded-full text-xs font-medium inline-flex items-center gap-1.5 shadow-md border border-white/10"><i data-lucide="folder" class="w-3.5 h-3.5 text-amber-400"></i> ${escapeHtml(item.event_name)}</span>`;
+        tagsHtml += `<span class="bg-emerald-600/90 text-white backdrop-blur-md px-3.5 py-1.5 rounded-full text-xs font-bold inline-flex items-center gap-1.5 shadow-md border border-white/20"><i data-lucide="check-circle-2" class="w-3.5 h-3.5"></i> ความมั่นใจ ${item.similarity_percent}%</span>`;
+      }
+
+      modalTags.innerHTML = tagsHtml;
+      if (window.lucide) lucide.createIcons();
+    }
+
+    function updateLightboxNavButtons() {
+      const prevBtn = document.getElementById('lightbox-prev-btn');
+      const nextBtn = document.getElementById('lightbox-next-btn');
+      if (!searchResults || searchResults.length <= 1) {
+        if (prevBtn) prevBtn.classList.add('hidden');
+        if (nextBtn) nextBtn.classList.add('hidden');
+        return;
+      }
+      const idx = searchResults.findIndex(r => r.photo_id === currentLightboxPhotoId);
+      if (prevBtn) {
+        prevBtn.classList.toggle('hidden', idx <= 0);
+      }
+      if (nextBtn) {
+        nextBtn.classList.toggle('hidden', idx >= searchResults.length - 1 || idx === -1);
+      }
+    }
+
+    function lightboxPrev() {
+      if (!searchResults || searchResults.length === 0) return;
+      const idx = searchResults.findIndex(r => r.photo_id === currentLightboxPhotoId);
+      if (idx > 0) {
+        const prev = searchResults[idx - 1];
+        openImageModal(prev.photo_url, prev.photo_id);
+      }
+    }
+
+    function lightboxNext() {
+      if (!searchResults || searchResults.length === 0) return;
+      const idx = searchResults.findIndex(r => r.photo_id === currentLightboxPhotoId);
+      if (idx !== -1 && idx < searchResults.length - 1) {
+        const next = searchResults[idx + 1];
+        openImageModal(next.photo_url, next.photo_id);
+      }
     }
 
     // PDPA Report Modal
@@ -1532,6 +1797,29 @@
         errBox.classList.remove('hidden');
       }
     }
+
+    // Global Keyboard Listeners (Escape to close any modal, Arrow keys in lightbox)
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        if (document.getElementById('name-modal').classList.contains('active')) {
+          closeNameModal();
+        } else if (document.getElementById('image-modal').classList.contains('active')) {
+          closeImageModal();
+        } else if (document.getElementById('camera-modal').classList.contains('active')) {
+          closeCameraModal();
+        } else if (document.getElementById('report-modal').classList.contains('active')) {
+          closeReportModal();
+        } else if (document.getElementById('pin-modal').classList.contains('active')) {
+          closePinModal();
+        }
+      } else if (document.getElementById('image-modal').classList.contains('active')) {
+        if (e.key === 'ArrowLeft') {
+          lightboxPrev();
+        } else if (e.key === 'ArrowRight') {
+          lightboxNext();
+        }
+      }
+    });
   </script>
 </body>
 </html>
