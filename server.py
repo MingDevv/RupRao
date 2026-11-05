@@ -30,6 +30,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
+import auth_session
 import db
 import face_lib
 import make_thumbs
@@ -65,10 +66,11 @@ app = FastAPI(
 )
 
 # อนุญาต CORS สำหรับการพัฒนาและการเชื่อมต่อในวง LAN
+# allow_credentials=False: เว็บอื่นจะยิง API พร้อม cookie ล็อกอินของผู้ใช้ไม่ได้
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -89,7 +91,15 @@ def check_pin_auth(
     x_school_pin: Optional[str] = Header(None, alias="X-School-PIN"),
     pin: Optional[str] = Query(None)
 ):
-    """ตรวจสอบสิทธิ์การเข้าถึงด้วยรหัสผ่านโรงเรียน (School PIN Gate) รองรับ Header, Query และ Cookie"""
+    """ตรวจสิทธิ์ผู้ใช้ทั่วไป:
+    - โหมดเมลโรงเรียน (ตั้ง RUPRAO_FIREBASE_PROJECT_ID): ต้องมี session cookie ที่ล็อกอินด้วย @โดเมนโรงเรียน
+    - โหมด PIN (ตั้ง RUPRAO_PIN): ต้องส่ง PIN ถูกต้องผ่าน Header / Query / Cookie
+    - ไม่ได้ตั้งอะไร: เปิดสาธารณะ"""
+    if auth_session.enabled():
+        if auth_session.session_from_request(request):
+            return True
+        raise HTTPException(status_code=401, detail="กรุณาเข้าสู่ระบบด้วยบัญชีโรงเรียนก่อนใช้งาน")
+
     if not RUPRAO_PIN or RUPRAO_PIN == "0":
         return True
     client_pin = (x_school_pin or pin or request.cookies.get("ruprao_pin") or "").strip()
@@ -150,14 +160,56 @@ def find_photo_path(rel_path: str, event_name: str = None) -> Optional[Path]:
 
 
 @app.get("/api/auth/status")
-async def get_auth_status():
-    """ตรวจสอบว่าระบบเปิดใช้งานรหัสผ่านโรงเรียน (School PIN) หรือไม่"""
+async def get_auth_status(request: Request):
+    """บอกหน้าเว็บว่าระบบใช้การยืนยันตัวตนแบบไหน และผู้ใช้ล็อกอินอยู่หรือไม่"""
+    firebase_on = auth_session.enabled()
+    user = auth_session.session_from_request(request)
     return {
-        "pin_required": bool(RUPRAO_PIN and RUPRAO_PIN != "0"),
-        # แอดมินต้องใช้ PIN เสมอ (ถ้ายังไม่ตั้งค่า ระบบแอดมินจะถูกปิด)
-        "admin_pin_required": True,
-        "admin_configured": _admin_configured()
+        "auth_mode": "firebase" if firebase_on else ("pin" if (RUPRAO_PIN and RUPRAO_PIN != "0") else "open"),
+        "pin_required": (not firebase_on) and bool(RUPRAO_PIN and RUPRAO_PIN != "0"),
+        "firebase": auth_session.web_config() if firebase_on else None,
+        "allowed_domain": auth_session.allowed_domain() if firebase_on else None,
+        "user": {"email": user["email"], "name": user["name"]} if user else None,
+        # แอดมิน: ถ้าตั้ง RUPRAO_ADMIN_EMAILS ใช้รายชื่ออีเมล ไม่งั้นใช้ PIN (ไม่ได้ตั้งทั้งคู่ = ปิดระบบแอดมิน)
+        "admin_mode": _admin_mode(),
+        "admin_pin_required": _admin_mode() == "pin",
+        "admin_configured": _admin_configured(),
+        "is_admin": bool(user) and _admin_mode() == "email" and auth_session.is_admin_email(user["email"]),
     }
+
+
+@app.post("/api/auth/session")
+def create_login_session(request: Request, payload: dict = Body(...)):
+    """รับ Firebase ID token จากหน้าเว็บ → ตรวจที่เซิร์ฟเวอร์ → ออก session cookie (ใช้ def เพราะต้องดึงกุญแจจาก Google)"""
+    if not auth_session.enabled():
+        raise HTTPException(status_code=404, detail="ระบบล็อกอินด้วยเมลโรงเรียนยังไม่เปิดใช้งาน")
+    try:
+        user = auth_session.verify_firebase_id_token(payload.get("idToken"))
+    except auth_session.AuthError as e:
+        logger.warning(f"[AUTH] ล็อกอินไม่ผ่าน: {e}")
+        return JSONResponse(status_code=403, content={"success": False, "error": str(e)})
+
+    is_admin = _admin_mode() == "email" and auth_session.is_admin_email(user["email"])
+    r = JSONResponse({"success": True, "user": user, "is_admin": is_admin})
+    r.set_cookie(
+        auth_session.SESSION_COOKIE,
+        auth_session.make_session_value(user["email"], user["name"]),
+        max_age=auth_session.SESSION_MAX_AGE,
+        httponly=True,
+        samesite="lax",
+        secure=auth_session.is_https(request),
+    )
+    logger.info(f"[AUTH] ล็อกอินสำเร็จ: {user['email']}{' (แอดมิน)' if is_admin else ''}")
+    return r
+
+
+@app.post("/api/auth/logout")
+async def logout_session():
+    """ออกจากระบบ: ลบ session cookie"""
+    r = JSONResponse({"success": True})
+    r.delete_cookie(auth_session.SESSION_COOKIE)
+    r.delete_cookie("ruprao_admin_pin")
+    return r
 
 
 @app.post("/api/auth/verify")
@@ -538,9 +590,20 @@ RUPRAO_ADMIN_PIN = os.getenv("RUPRAO_ADMIN_PIN", "").strip()
 ADMIN_NOT_CONFIGURED_MSG = "ระบบแอดมินถูกปิดไว้ เพราะยังไม่ได้ตั้งค่า RUPRAO_ADMIN_PIN ในไฟล์ .env"
 
 
+def _admin_mode() -> str:
+    """วิธียืนยันตัวแอดมิน:
+    - "email": เปิดล็อกอินเมลโรงเรียน + ตั้ง RUPRAO_ADMIN_EMAILS → เข้าได้เฉพาะอีเมลในรายชื่อ (PIN ใช้ไม่ได้)
+    - "pin":   ตั้ง RUPRAO_ADMIN_PIN → ใครรู้ PIN ก็เข้าได้
+    - "off":   ไม่ได้ตั้งทั้งคู่ → ปิดระบบแอดมิน (ไม่มีโหมดเปิดเสรี — ปลอดภัยไว้ก่อน)"""
+    if auth_session.enabled() and auth_session.admin_emails():
+        return "email"
+    if RUPRAO_ADMIN_PIN and RUPRAO_ADMIN_PIN != "0":
+        return "pin"
+    return "off"
+
+
 def _admin_configured() -> bool:
-    """แอดมินใช้งานได้เฉพาะเมื่อตั้ง RUPRAO_ADMIN_PIN แล้วเท่านั้น (ไม่มีโหมดเปิดเสรี — ปลอดภัยไว้ก่อน)"""
-    return bool(RUPRAO_ADMIN_PIN) and RUPRAO_ADMIN_PIN != "0"
+    return _admin_mode() != "off"
 
 
 # ── กันเดารหัสแอดมิน: ผิดครบ 5 ครั้ง ล็อก IP นั้น 15 นาที (ทั้งหน้า login และการยิง API ตรงด้วย header) ──
@@ -580,7 +643,7 @@ ADMIN_LOCKED_MSG = "ใส่รหัสผิดหลายครั้งเ
 
 def _admin_ok(pin: str) -> bool:
     """ตรวจสอบความถูกต้องของรหัส Admin PIN ด้วย Constant-Time comparison (ไม่รับ student PIN หรือ hardcoded fallback)"""
-    if not _admin_configured():
+    if _admin_mode() != "pin":
         return False
     return bool(pin) and hmac.compare_digest(pin, RUPRAO_ADMIN_PIN)
 
@@ -591,8 +654,18 @@ def check_admin_auth(
     admin_pin: Optional[str] = Query(None)
 ):
     """ตรวจสอบสิทธิ์สำหรับผู้ดูแลระบบ (Admin PIN Gate)"""
-    if not _admin_configured():
+    mode = _admin_mode()
+    if mode == "off":
         raise HTTPException(status_code=503, detail=ADMIN_NOT_CONFIGURED_MSG)
+
+    if mode == "email":
+        user = auth_session.session_from_request(request)
+        if not user:
+            raise HTTPException(status_code=401, detail="กรุณาเข้าสู่ระบบด้วยบัญชีโรงเรียนก่อน")
+        if not auth_session.is_admin_email(user["email"]):
+            logger.warning(f"[ADMIN] บัญชีไม่มีสิทธิ์พยายามเข้าแอดมิน: {user['email']}")
+            raise HTTPException(status_code=403, detail=f"บัญชี {user['email']} ไม่มีสิทธิ์เข้าหน้าผู้ดูแลระบบ")
+        return True
 
     ip = _client_ip(request)
     if _admin_locked(ip):
@@ -613,6 +686,8 @@ async def admin_login(request: Request, payload: dict = Body(...)):
     """ยืนยันตัวตนเข้าสู่ระบบผู้ดูแลระบบ พร้อมตั้ง Cookie"""
     if not _admin_configured():
         return JSONResponse(status_code=503, content={"success": False, "error": ADMIN_NOT_CONFIGURED_MSG})
+    if _admin_mode() == "email":
+        return JSONResponse(status_code=400, content={"success": False, "error": "แอดมินเข้าด้วยบัญชีโรงเรียนที่ได้รับอนุญาตเท่านั้น (ไม่ใช้ PIN)"})
 
     ip = _client_ip(request)
     if _admin_locked(ip):

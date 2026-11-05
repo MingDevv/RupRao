@@ -12,6 +12,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <!-- Lucide Icons -->
   <script src="https://unpkg.com/lucide@latest"></script>
+  <script type="module" src="/static/auth.js"></script>
   
   <script>
     tailwind.config = {
@@ -142,7 +143,17 @@
         <h3 class="text-lg font-bold text-slate-900">เข้าสู่ระบบผู้ดูแลระบบ</h3>
         <p class="text-xs text-slate-500 mt-1">กรุณาระบุรหัสผ่านแอดมินเพื่อเข้าถึงแดชบอร์ดจัดการ</p>
       </div>
-      <div class="space-y-3.5">
+      <!-- โหมดอีเมล: เข้าได้เฉพาะบัญชีโรงเรียนที่อยู่ใน RUPRAO_ADMIN_EMAILS -->
+      <div id="admin-email-login" class="hidden space-y-3.5">
+        <div id="admin-email-msg" class="hidden text-xs text-rose-600 bg-rose-50 p-2.5 rounded-xl border border-rose-200 font-medium text-left"></div>
+        <button type="button" id="admin-google-btn" onclick="adminGoogleLogin()" class="w-full py-3 bg-white hover:bg-slate-50 text-slate-800 font-bold text-xs sm:text-sm rounded-xl border border-slate-300 shadow-sm transition cursor-pointer active:scale-95 disabled:opacity-60">
+          เข้าสู่ระบบด้วยบัญชีโรงเรียน (Google)
+        </button>
+        <a href="/" class="block w-full py-2 text-slate-500 hover:text-slate-800 text-xs font-semibold rounded-xl transition cursor-pointer">
+          ← กลับสู่หน้าค้นหาหลัก
+        </a>
+      </div>
+      <div id="admin-pin-login" class="space-y-3.5">
         <input type="password" id="admin-pin-input" placeholder="ใส่รหัสแอดมิน..." class="w-full px-4 py-3 text-center tracking-widest text-lg font-mono rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500" onkeydown="if(event.key==='Enter') submitAdminLogin()">
         <div id="admin-pin-error" class="hidden text-xs text-rose-600 bg-rose-50 p-2.5 rounded-xl border border-rose-200 font-medium">
           รหัสผ่านไม่ถูกต้อง กรุณาลองใหม่อีกครั้ง
@@ -493,6 +504,16 @@
       try {
         const res = await fetch('/api/auth/status');
         const st = await res.json();
+        adminAuthStatus = st;
+        if (st.admin_mode === 'email') {
+          if (st.is_admin) {
+            hideAuthModal();
+            initDashboard();
+          } else {
+            showEmailLogin(st.user ? `บัญชี ${st.user.email} ไม่มีสิทธิ์เข้าหน้าผู้ดูแลระบบ — กรุณาใช้บัญชีที่ได้รับอนุญาต` : '');
+          }
+          return;
+        }
         if (st.admin_configured === false) {
           // ยังไม่ได้ตั้ง RUPRAO_ADMIN_PIN → ระบบแอดมินปิดอยู่ แจ้งผู้ใช้แทนการเปิดให้เข้าได้ฟรี
           showAuthModal();
@@ -571,7 +592,44 @@
       }
     }
 
-    function logoutAdmin() {
+    let adminAuthStatus = null;
+
+    function showEmailLogin(message) {
+      document.getElementById('admin-pin-login').classList.add('hidden');
+      document.getElementById('admin-email-login').classList.remove('hidden');
+      const msg = document.getElementById('admin-email-msg');
+      if (message) {
+        msg.textContent = message;
+        msg.classList.remove('hidden');
+      } else {
+        msg.classList.add('hidden');
+      }
+      showAuthModal();
+    }
+
+    async function adminGoogleLogin() {
+      const btn = document.getElementById('admin-google-btn');
+      btn.disabled = true;
+      try {
+        if (adminAuthStatus && adminAuthStatus.user) {
+          await window.RupRaoAuth.signOut();   // ล็อกอินบัญชีที่ไม่มีสิทธิ์ค้างอยู่ → ออกก่อนแล้วเลือกบัญชีใหม่
+        }
+        const data = await window.RupRaoAuth.signIn(adminAuthStatus);
+        if (data.is_admin) {
+          window.location.reload();
+        } else {
+          showEmailLogin(`บัญชี ${data.user.email} ไม่มีสิทธิ์เข้าหน้าผู้ดูแลระบบ — กรุณาใช้บัญชีที่ได้รับอนุญาต`);
+          adminAuthStatus.user = data.user;
+        }
+      } catch (err) {
+        showEmailLogin(err.message);
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    async function logoutAdmin() {
+      if (window.RupRaoAuth) await window.RupRaoAuth.signOut();
       localStorage.removeItem('ruprao_admin_pin');
       adminToken = '';
       // นำทางออกจากหน้าแอดมินกลับสู่หน้าค้นหาหลักทันที
