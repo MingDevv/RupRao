@@ -493,10 +493,12 @@
       try {
         const res = await fetch('/api/auth/status');
         const st = await res.json();
-        if (!st.admin_pin_required) {
-          adminToken = 'OPEN';
-          hideAuthModal();
-          initDashboard();
+        if (st.admin_configured === false) {
+          // ยังไม่ได้ตั้ง RUPRAO_ADMIN_PIN → ระบบแอดมินปิดอยู่ แจ้งผู้ใช้แทนการเปิดให้เข้าได้ฟรี
+          showAuthModal();
+          const errBox = document.getElementById('admin-pin-error');
+          errBox.textContent = 'ระบบแอดมินถูกปิดไว้ เพราะยังไม่ได้ตั้งค่า RUPRAO_ADMIN_PIN ในไฟล์ .env';
+          errBox.classList.remove('hidden');
           return;
         }
       } catch (e) {}
@@ -540,6 +542,7 @@
           hideAuthModal();
           initDashboard();
         } else {
+          errBox.textContent = data.error || 'รหัสผ่านไม่ถูกต้อง กรุณาลองใหม่อีกครั้ง';
           errBox.classList.remove('hidden');
           const modalBox = document.getElementById('admin-auth-modal').querySelector('div');
           if (modalBox) {

@@ -153,7 +153,9 @@ async def get_auth_status():
     """ตรวจสอบว่าระบบเปิดใช้งานรหัสผ่านโรงเรียน (School PIN) หรือไม่"""
     return {
         "pin_required": bool(RUPRAO_PIN and RUPRAO_PIN != "0"),
-        "admin_pin_required": bool(RUPRAO_ADMIN_PIN and RUPRAO_ADMIN_PIN != "0")
+        # แอดมินต้องใช้ PIN เสมอ (ถ้ายังไม่ตั้งค่า ระบบแอดมินจะถูกปิด)
+        "admin_pin_required": True,
+        "admin_configured": _admin_configured()
     }
 
 
@@ -209,15 +211,18 @@ async def get_stats():
     return db.get_stats(conn)
 
 
+# หมายเหตุ: endpoint ที่ใช้ CPU หนัก (AI ตรวจหน้า / FAISS / subprocess) ประกาศเป็น `def` ธรรมดา
+# FastAPI จะรันใน thread pool ให้เอง ไม่บล็อก event loop — คนอื่นยังโหลดเว็บ/รูปได้ระหว่างมีคนค้นหา
+
 @app.post("/api/search/detect")
-async def detect_selfie_faces(
+def detect_selfie_faces(
     selfie: UploadFile = File(...),
     authorized: bool = Depends(check_pin_auth)
 ):
     """ตรวจจับหน้าในเซลฟี่แล้วคืนภาพครอปของแต่ละหน้า (base64) ให้ผู้ใช้เลือกหน้าตัวเองก่อนค้นหา
     (กติกาเหล็ก: ไม่บันทึกอะไรลงดิสก์ — ครอปอยู่ใน RAM แล้วส่งกลับทันที)"""
     import base64
-    contents = await selfie.read()
+    contents = selfie.file.read()
     if len(contents) > 15 * 1024 * 1024:
         raise HTTPException(status_code=413, detail="ขนาดไฟล์เกิน 15 MB")
     nparr = np.frombuffer(contents, np.uint8)
@@ -248,8 +253,12 @@ async def detect_selfie_faces(
     return {"success": True, "count": len(out), "faces": out}
 
 
+SEARCH_THRESHOLD_MIN = 0.35   # ต่ำกว่านี้ผลจะมั่วจนกลายเป็นการไล่ดูรูปทั้งคลัง (เรื่อง PDPA)
+SEARCH_THRESHOLD_MAX = 0.80
+
+
 @app.post("/api/search")
-async def search_faces(
+def search_faces(
     selfie: UploadFile = File(...),
     threshold: float = Form(0.45),
     face_index: int = Form(-1),
@@ -259,8 +268,11 @@ async def search_faces(
     รับรูปเซลฟี่ → ประมวลผลใน RAM → ค้นหาใน FAISS → ลบเซลฟี่ออกจากหน่วยความจำทันที
     (กติกาเหล็ก: ไม่มีการบันทึกภาพเซลฟี่ของผู้ค้นหาลงดิสก์เด็ดขาด)
     """
+    # 0. บังคับ threshold ให้อยู่ในช่วงที่ปลอดภัยฝั่ง server (ไม่เชื่อค่าจาก client)
+    threshold = min(max(float(threshold), SEARCH_THRESHOLD_MIN), SEARCH_THRESHOLD_MAX)
+
     # 1. ตรวจสอบชนิดไฟล์และขนาดไฟล์ (จำกัด 15 MB)
-    contents = await selfie.read()
+    contents = selfie.file.read()
     if len(contents) > 15 * 1024 * 1024:
         raise HTTPException(status_code=413, detail="ขนาดไฟล์เกิน 15 MB")
 
@@ -301,16 +313,18 @@ async def search_faces(
         return {"success": True, "total_found": 0, "results": []}
 
     k = min(500, index.ntotal)
-    while True:
-        distances, indices = index.search(query_emb_2d, k)
-        # หากเวกเตอร์ตัวสุดท้ายที่ตำแหน่ง k-1 ยังมีคะแนน >= threshold และยังมีเวกเตอร์ใน index เหลืออยู่ ให้ขยาย k ต่อไป
-        if k < index.ntotal and distances[0][-1] >= threshold:
-            next_k = min(k + 500, index.ntotal, 20000)
-            if next_k == k:
+    # ล็อกระหว่างค้นหา: ตอนนี้ค้นหารันหลายเธรดพร้อมกันได้ จึงต้องกันไม่ให้ชนกับการเพิ่ม/ลบเวกเตอร์ของแอดมิน
+    with _faiss_lock:
+        while True:
+            distances, indices = index.search(query_emb_2d, k)
+            # หากเวกเตอร์ตัวสุดท้ายที่ตำแหน่ง k-1 ยังมีคะแนน >= threshold และยังมีเวกเตอร์ใน index เหลืออยู่ ให้ขยาย k ต่อไป
+            if k < index.ntotal and distances[0][-1] >= threshold:
+                next_k = min(k + 500, index.ntotal, 20000)
+                if next_k == k:
+                    break
+                k = next_k
+            else:
                 break
-            k = next_k
-        else:
-            break
 
     logger.debug(f"[SEARCH LOG] faces: {len(faces)} | k_used: {k} | Top 5: {[round(float(d), 4) for d in distances[0][:5]]} | Threshold: {threshold}")
 
@@ -511,10 +525,18 @@ async def admin_page():
 RUPRAO_ADMIN_PIN = os.getenv("RUPRAO_ADMIN_PIN", "").strip()
 
 
+ADMIN_NOT_CONFIGURED_MSG = "ระบบแอดมินถูกปิดไว้ เพราะยังไม่ได้ตั้งค่า RUPRAO_ADMIN_PIN ในไฟล์ .env"
+
+
+def _admin_configured() -> bool:
+    """แอดมินใช้งานได้เฉพาะเมื่อตั้ง RUPRAO_ADMIN_PIN แล้วเท่านั้น (ไม่มีโหมดเปิดเสรี — ปลอดภัยไว้ก่อน)"""
+    return bool(RUPRAO_ADMIN_PIN) and RUPRAO_ADMIN_PIN != "0"
+
+
 def _admin_ok(pin: str) -> bool:
     """ตรวจสอบความถูกต้องของรหัส Admin PIN ด้วย Constant-Time comparison (ไม่รับ student PIN หรือ hardcoded fallback)"""
-    if not RUPRAO_ADMIN_PIN or RUPRAO_ADMIN_PIN == "0":
-        return True
+    if not _admin_configured():
+        return False
     return bool(pin) and hmac.compare_digest(pin, RUPRAO_ADMIN_PIN)
 
 
@@ -524,8 +546,8 @@ def check_admin_auth(
     admin_pin: Optional[str] = Query(None)
 ):
     """ตรวจสอบสิทธิ์สำหรับผู้ดูแลระบบ (Admin PIN Gate)"""
-    if not RUPRAO_ADMIN_PIN or RUPRAO_ADMIN_PIN == "0":
-        return True
+    if not _admin_configured():
+        raise HTTPException(status_code=503, detail=ADMIN_NOT_CONFIGURED_MSG)
 
     client_pin = (x_admin_pin or admin_pin or request.cookies.get("ruprao_admin_pin") or "").strip()
     if not _admin_ok(client_pin):
@@ -539,8 +561,8 @@ def check_admin_auth(
 @app.post("/api/admin/login")
 async def admin_login(payload: dict = Body(...), response: Response = None):
     """ยืนยันตัวตนเข้าสู่ระบบผู้ดูแลระบบ พร้อมตั้ง Cookie"""
-    if not RUPRAO_ADMIN_PIN or RUPRAO_ADMIN_PIN == "0":
-        return {"success": True, "message": "เข้าสู่ระบบสำเร็จ (โหมดเปิดเสรี)", "token": "OPEN"}
+    if not _admin_configured():
+        return JSONResponse(status_code=503, content={"success": False, "error": ADMIN_NOT_CONFIGURED_MSG})
 
     pin = str(payload.get("pin", "")).strip()
     if _admin_ok(pin):
@@ -682,7 +704,7 @@ async def toggle_photo_visibility(
 
 
 @app.post("/api/admin/upload")
-async def upload_photos_admin(
+def upload_photos_admin(
     album: str = Form("งานกิจกรรมโรงเรียน"),
     files: List[UploadFile] = File(...),
     authorized: bool = Depends(check_admin_auth)
@@ -710,7 +732,7 @@ async def upload_photos_admin(
         if db.is_photo_scanned(conn, rel_path):
             continue
 
-        content = await up_file.read()
+        content = up_file.file.read()
         save_path = album_dir / safe_name
         is_preexisting = save_path.exists()
         if not is_preexisting:
@@ -917,7 +939,7 @@ async def fetch_facebook_status(authorized: bool = Depends(check_admin_auth)):
 
 
 @app.post("/api/admin/scan_disk")
-async def scan_disk_admin(
+def scan_disk_admin(
     authorized: bool = Depends(check_admin_auth)
 ):
     """สแกนรูปภาพที่ยังไม่ได้เข้าระบบทั้งหมดใน data/raw และ data/input ทันที (ใช้ sys.executable)"""

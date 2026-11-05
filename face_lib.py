@@ -5,22 +5,27 @@ face_lib.py — กล่องเครื่องมือร่วมขอ�
 ทุกสคริปต์ (step2, step3, และโปรแกรมค้นหาในอนาคต) มาเรียกใช้ที่นี่
 ประโยชน์: โมเดลโหลดครั้งเดียวต่อการรัน ไม่ต้องโหลดซ้ำทุกสคริปต์
 """
+import threading
 from pathlib import Path
 
 import numpy as np
 
 _app = None   # เก็บโมเดลไว้ในหน่วยความจำ — None = ยังไม่โหลด
+_app_lock = threading.Lock()   # กันหลายเธรดโหลดโมเดลซ้ำพร้อมกันตอนเซิร์ฟเวอร์เพิ่งเปิด
 
 
 def get_app():
-    """โหลดโมเดล AI (ถ้ายังไม่ได้โหลด) แล้วคืนตัวใช้งาน — เรียกกี่ครั้งก็โหลดครั้งเดียว"""
+    """โหลดโมเดล AI (ถ้ายังไม่ได้โหลด) แล้วคืนตัวใช้งาน — เรียกกี่ครั้งก็โหลดครั้งเดียว (thread-safe)"""
     global _app
     if _app is None:
-        print("🧠 โหลดโมเดล AI (โหลดครั้งเดียวต่อการรัน)...")
-        from insightface.app import FaceAnalysis
-        _app = FaceAnalysis(name="buffalo_l", providers=["CPUExecutionProvider"])
-        _app.prepare(ctx_id=-1, det_size=(640, 640))
-        print("✅ โมเดลพร้อม!\n")
+        with _app_lock:
+            if _app is None:
+                print("🧠 โหลดโมเดล AI (โหลดครั้งเดียวต่อการรัน)...")
+                from insightface.app import FaceAnalysis
+                app = FaceAnalysis(name="buffalo_l", providers=["CPUExecutionProvider"])
+                app.prepare(ctx_id=-1, det_size=(640, 640))
+                _app = app
+                print("✅ โมเดลพร้อม!\n")
     return _app
 
 
