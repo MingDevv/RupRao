@@ -368,5 +368,19 @@
   - JavaScript Syntax Check ผ่าน Node.js ผ่าน 100%
   - Production E2E Test Suite (`test_production.py`) ผ่าน 9/9 ครบทุกรายการ
 
+[บทที่ 41] ปรับปรุงหน้าผู้ดูแลระบบ (Admin Dashboard) สไตล์ Anti-Slop Swiss Design (5 พ.ย.)
+- ยกเครื่องดีไซน์หน้า admin.html ตามมาตรฐาน Anti-Slop และ ui-ux-pro-max:
+  - กำจัดลูกบอลสีรุ้ง (Ambient Orbs) และอีโมจิทั้งหมด แทนที่ด้วย SVG ไอคอน Lucide คมชัด ระดับสากล
+  - พื้นหลัง Slate-50 สะอาดตา พร้อมรัศมีแสงอ่อนๆ เข้าคู่กับหน้าหลัก
+  - KPI Metrics แบบ Swiss Minimalist (Type, Not Tiles) ตัวเลขสถิติเด่นชัด 4 มิติ (รูปภาพ, ใบหน้า AI, อัลบั้ม, คำขอลบ PDPA)
+  - แท็บคลังรูปภาพ (Gallery): ค้นหาชื่อไฟล์, ตัวกรองอัลบั้ม, ป้ายสถานะจำนวนใบหน้า, ปุ่มดูรูปเต็ม/ซ่อนรูป/ลบรูป
+  - แท็บนำเข้ารูป (Ingest): ช่องดรอปไฟล์สวยงาม, เครื่องมือดูดรูป Facebook พร้อม Terminal แสดงสถานะเรียลไทม์, และปุ่มสแกนโฟลเดอร์ data/raw
+  - แท็บคำขอลบรูป (PDPA Moderation): ตารางข้อมูลแบบ Quiet Borders คมชัด พร้อมปุ่ม "อนุมัติ & ซ่อน", "ลบถาวร (PDPA)", และ "ปฏิเสธ"
+  - Modal ป้อนรหัสแอดมิน และ Lightbox ดูรูปเต็ม พร้อมแอนิเมชันเปิด-ปิดลื่นไหล และรองรับปุ่ม Esc
+- ตรวจสอบความถูกต้อง:
+  - HTML Tag Balance ใน admin.html ผ่าน 100%
+  - JavaScript Syntax ผ่าน Node.js 100%
+  - Test Suite E2E ผ่าน 9/9 ครบถ้วน
+
 
 

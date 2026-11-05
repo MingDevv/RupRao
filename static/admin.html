@@ -10,6 +10,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
   
   <script>
     tailwind.config = {
@@ -38,165 +40,202 @@
   <style>
     body {
       font-family: 'Prompt', sans-serif;
-      background: #f8fafc;
+      background-color: #f8fafc;
+      background-image: radial-gradient(at 50% 0%, rgba(224, 242, 254, 0.6) 0%, transparent 60%);
+      background-attachment: fixed;
       min-height: 100vh;
       overflow-x: hidden;
     }
-    .ambient-orb-1 {
-      position: fixed;
-      top: -10%;
-      left: -10%;
-      width: 45vw;
-      height: 45vw;
-      border-radius: 50%;
-      background: radial-gradient(circle, rgba(14, 165, 233, 0.2) 0%, rgba(99, 102, 241, 0.12) 50%, transparent 70%);
-      filter: blur(60px);
-      z-index: 0;
-      pointer-events: none;
-    }
-    .ambient-orb-2 {
-      position: fixed;
-      bottom: -10%;
-      right: -10%;
-      width: 40vw;
-      height: 40vw;
-      border-radius: 50%;
-      background: radial-gradient(circle, rgba(99, 102, 241, 0.18) 0%, rgba(236, 72, 153, 0.1) 50%, transparent 70%);
-      filter: blur(60px);
-      z-index: 0;
-      pointer-events: none;
-    }
+
     .glass-card {
-      background: rgba(255, 255, 255, 0.94);
+      background: rgba(255, 255, 255, 0.96);
       backdrop-filter: blur(16px);
       -webkit-backdrop-filter: blur(16px);
-      border: 1px solid rgba(255, 255, 255, 0.85);
-      box-shadow: 0 14px 35px -10px rgba(12, 74, 110, 0.08), 0 0 0 1px rgba(14, 165, 233, 0.1);
+      border: 1px solid rgba(226, 232, 240, 0.9);
+      box-shadow: 0 10px 30px -10px rgba(15, 23, 42, 0.06), 0 0 0 1px rgba(226, 232, 240, 0.8);
+    }
+
+    /* Modal Architecture */
+    .admin-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      background: rgba(15, 23, 42, 0.72);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      transition: opacity 0.22s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.22s;
+    }
+    .admin-modal.active {
+      opacity: 1;
+      visibility: visible;
+      pointer-events: auto;
+    }
+    .admin-modal > div {
+      transform: scale(0.96) translateY(6px);
+      transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .admin-modal.active > div {
+      transform: scale(1) translateY(0);
+    }
+
+    /* Shake for Auth Error */
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      20%, 60% { transform: translateX(-6px); }
+      40%, 80% { transform: translateX(6px); }
+    }
+    .animate-shake {
+      animation: shake 0.4s ease-in-out;
     }
   </style>
 </head>
 <body class="min-h-screen text-slate-800 flex flex-col relative antialiased selection:bg-brand-500 selection:text-white">
 
-  <!-- Ambient Light Orbs -->
-  <div class="ambient-orb-1"></div>
-  <div class="ambient-orb-2"></div>
-
   <!-- Top Navigation Bar -->
-  <header class="bg-white/90 backdrop-blur-md sticky top-0 z-40 border-b border-slate-200">
+  <header class="bg-white/90 backdrop-blur-md sticky top-0 z-40 border-b border-slate-200 shadow-2xs">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
       <div class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-800 to-brand-500 text-white flex items-center justify-center font-bold text-lg shadow-md shadow-brand-500/20">
-          ⚙️
+        <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-blue-700 via-indigo-600 to-cyan-500 text-white flex items-center justify-center font-bold text-lg shadow-md shadow-blue-500/20">
+          <i data-lucide="shield-check" class="w-5 h-5 text-white"></i>
         </div>
         <div>
           <div class="flex items-center gap-2">
-            <h1 class="text-base sm:text-lg font-bold text-brand-900 tracking-tight">RupRao Admin</h1>
-            <span class="text-[10px] font-semibold bg-brand-100 text-brand-700 px-2 py-0.5 rounded-full border border-brand-200">
+            <h1 class="text-base sm:text-lg font-bold text-slate-900 tracking-tight leading-none">RupRao Admin</h1>
+            <span class="text-[10px] font-bold bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full border border-blue-200">
               ผู้ดูแลระบบ
             </span>
+            <span class="hidden sm:inline text-[10px] font-semibold bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">
+              ท.๖ นครเชียงราย
+            </span>
           </div>
-          <p class="text-[11px] text-slate-500">โรงเรียนเทศบาล 6 นครเชียงราย (CRMS6)</p>
+          <p class="text-[11px] text-slate-500 mt-0.5">ระบบจัดการภาพกิจกรรมและโมเดลค้นหาใบหน้า AI</p>
         </div>
       </div>
 
       <div class="flex items-center gap-2 sm:gap-3">
-        <a href="/" class="px-3.5 py-1.5 text-xs sm:text-sm font-medium text-brand-700 bg-brand-50 hover:bg-brand-100 rounded-xl border border-brand-200 transition flex items-center gap-1.5">
-          <span>🔍</span>
+        <a href="/" class="px-3.5 py-2 text-xs font-bold text-blue-700 bg-sky-50 hover:bg-sky-100 rounded-xl border border-sky-200 transition inline-flex items-center gap-1.5 shadow-2xs cursor-pointer active:scale-95">
+          <i data-lucide="search" class="w-3.5 h-3.5"></i>
           <span>ไปหน้าค้นหา</span>
         </a>
-        <button type="button" onclick="logoutAdmin()" class="px-3 py-1.5 text-xs sm:text-sm font-medium text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition">
-          ออกจากระบบ
+        <button type="button" onclick="logoutAdmin()" class="px-3 py-2 text-xs font-bold text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-xl border border-transparent hover:border-rose-100 transition inline-flex items-center gap-1.5 cursor-pointer active:scale-95">
+          <i data-lucide="log-out" class="w-3.5 h-3.5"></i>
+          <span class="hidden sm:inline">ออกจากระบบ</span>
         </button>
       </div>
     </div>
   </header>
 
   <!-- Admin PIN Gate Modal -->
-  <div id="admin-auth-modal" class="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4">
-    <div class="glass-card bg-white rounded-3xl max-w-sm w-full p-6 sm:p-8 shadow-2xl border border-slate-200 text-center space-y-5">
-      <div class="w-14 h-14 mx-auto rounded-2xl bg-brand-50 text-brand-700 flex items-center justify-center text-2xl font-bold border border-brand-100">
-        🛡️
+  <div id="admin-auth-modal" class="admin-modal">
+    <div class="bg-white rounded-3xl max-w-sm w-full p-6 sm:p-8 shadow-2xl border border-slate-200 text-center space-y-5">
+      <div class="w-14 h-14 mx-auto rounded-2xl bg-gradient-to-tr from-blue-700 to-indigo-600 text-white flex items-center justify-center shadow-md shadow-blue-500/25">
+        <i data-lucide="lock" class="w-7 h-7"></i>
       </div>
       <div>
         <h3 class="text-lg font-bold text-slate-900">เข้าสู่ระบบผู้ดูแลระบบ</h3>
-        <p class="text-xs text-slate-500 mt-1">กรุณาระบุรหัสผ่านแอดมินเพื่อเข้าถึงแดชบอร์ด</p>
+        <p class="text-xs text-slate-500 mt-1">กรุณาระบุรหัสผ่านแอดมินเพื่อเข้าถึงแดชบอร์ดจัดการ</p>
       </div>
-      <div class="space-y-3">
-        <input type="password" id="admin-pin-input" placeholder="ใส่รหัสแอดมิน..." class="w-full px-4 py-3 text-center tracking-widest text-lg font-mono rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-brand-500">
-        <div id="admin-pin-error" class="hidden text-xs text-rose-600 bg-rose-50 p-2 rounded-lg border border-rose-200">
-          รหัสผ่านไม่ถูกต้อง กรุณาลองใหม่
+      <div class="space-y-3.5">
+        <input type="password" id="admin-pin-input" placeholder="ใส่รหัสแอดมิน..." class="w-full px-4 py-3 text-center tracking-widest text-lg font-mono rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500" onkeydown="if(event.key==='Enter') submitAdminLogin()">
+        <div id="admin-pin-error" class="hidden text-xs text-rose-600 bg-rose-50 p-2.5 rounded-xl border border-rose-200 font-medium">
+          รหัสผ่านไม่ถูกต้อง กรุณาลองใหม่อีกครั้ง
         </div>
-        <button type="button" onclick="submitAdminLogin()" class="w-full py-3 bg-gradient-to-r from-brand-700 to-brand-500 hover:opacity-95 text-white font-medium text-sm rounded-xl shadow-md shadow-brand-500/25 transition">
-          เข้าสู่ระบบ
+        <button type="button" onclick="submitAdminLogin()" class="w-full py-3 bg-gradient-to-r from-blue-700 via-indigo-600 to-cyan-500 hover:opacity-95 text-white font-bold text-xs sm:text-sm rounded-xl shadow-md transition cursor-pointer active:scale-95">
+          เข้าสู่ระบบแอดมิน
         </button>
       </div>
     </div>
   </div>
 
   <!-- Main Container -->
-  <main class="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full space-y-6 relative z-10">
+  <main class="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-7 w-full space-y-6 relative z-10">
 
-    <!-- KPI Metric Cards -->
+    <!-- KPI Metric Cards (Swiss Minimalist — Type, Not Tiles) -->
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
-      <div class="glass-card rounded-2xl p-5 flex items-center gap-4">
-        <div class="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center text-2xl border border-blue-100">
-          📸
-        </div>
+      
+      <!-- Metric 1: Photos -->
+      <div class="glass-card rounded-2xl p-5 flex items-start justify-between border border-slate-200/90 shadow-xs">
         <div>
-          <p class="text-xs text-slate-500 font-medium">รูปภาพกิจกรรม</p>
-          <h3 id="stat-photos" class="text-2xl font-bold text-slate-900 mt-0.5">--</h3>
-          <p class="text-[11px] text-blue-600">พร้อมค้นหา</p>
+          <p class="text-xs text-slate-500 font-medium flex items-center gap-1.5">
+            <i data-lucide="image" class="w-3.5 h-3.5 text-blue-600"></i>
+            <span>รูปภาพกิจกรรม</span>
+          </p>
+          <h3 id="stat-photos" class="text-2xl sm:text-3xl font-black text-slate-900 mt-1 tracking-tight">--</h3>
+          <p class="text-[11px] text-blue-600 font-semibold mt-0.5">พร้อมค้นหาในคลัง</p>
+        </div>
+        <div class="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center border border-blue-100/80">
+          <i data-lucide="image" class="w-5 h-5"></i>
         </div>
       </div>
 
-      <div class="glass-card rounded-2xl p-5 flex items-center gap-4">
-        <div class="w-12 h-12 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-2xl border border-indigo-100">
-          👤
-        </div>
+      <!-- Metric 2: Faces in FAISS -->
+      <div class="glass-card rounded-2xl p-5 flex items-start justify-between border border-slate-200/90 shadow-xs">
         <div>
-          <p class="text-xs text-slate-500 font-medium">ใบหน้าในระบบ AI</p>
-          <h3 id="stat-faces" class="text-2xl font-bold text-slate-900 mt-0.5">--</h3>
-          <p class="text-[11px] text-indigo-600">FAISS Index</p>
+          <p class="text-xs text-slate-500 font-medium flex items-center gap-1.5">
+            <i data-lucide="users" class="w-3.5 h-3.5 text-indigo-600"></i>
+            <span>ใบหน้าในระบบ AI</span>
+          </p>
+          <h3 id="stat-faces" class="text-2xl sm:text-3xl font-black text-slate-900 mt-1 tracking-tight">--</h3>
+          <p class="text-[11px] text-indigo-600 font-semibold mt-0.5">เวกเตอร์ ArcFace 512 มิติ</p>
+        </div>
+        <div class="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center border border-indigo-100/80">
+          <i data-lucide="users" class="w-5 h-5"></i>
         </div>
       </div>
 
-      <div class="glass-card rounded-2xl p-5 flex items-center gap-4">
-        <div class="w-12 h-12 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center text-2xl border border-sky-100">
-          📁
-        </div>
+      <!-- Metric 3: Albums -->
+      <div class="glass-card rounded-2xl p-5 flex items-start justify-between border border-slate-200/90 shadow-xs">
         <div>
-          <p class="text-xs text-slate-500 font-medium">อัลบั้มกิจกรรม</p>
-          <h3 id="stat-albums" class="text-2xl font-bold text-slate-900 mt-0.5">--</h3>
-          <p class="text-[11px] text-sky-600">แยกตามงาน</p>
+          <p class="text-xs text-slate-500 font-medium flex items-center gap-1.5">
+            <i data-lucide="folder" class="w-3.5 h-3.5 text-sky-600"></i>
+            <span>อัลบั้มกิจกรรม</span>
+          </p>
+          <h3 id="stat-albums" class="text-2xl sm:text-3xl font-black text-slate-900 mt-1 tracking-tight">--</h3>
+          <p class="text-[11px] text-sky-600 font-semibold mt-0.5">แยกตามโฟลเดอร์/งาน</p>
+        </div>
+        <div class="w-10 h-10 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center border border-sky-100/80">
+          <i data-lucide="folder" class="w-5 h-5"></i>
         </div>
       </div>
 
-      <div class="glass-card rounded-2xl p-5 flex items-center gap-4">
-        <div class="w-12 h-12 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center text-2xl border border-rose-100">
-          🚩
-        </div>
+      <!-- Metric 4: PDPA Requests -->
+      <div class="glass-card rounded-2xl p-5 flex items-start justify-between border border-slate-200/90 shadow-xs">
         <div>
-          <p class="text-xs text-slate-500 font-medium">คำขอลบ (PDPA)</p>
-          <h3 id="stat-reports" class="text-2xl font-bold text-slate-900 mt-0.5">--</h3>
-          <p id="stat-reports-sub" class="text-[11px] text-rose-600 font-medium">0 รอดำเนินการ</p>
+          <p class="text-xs text-slate-500 font-medium flex items-center gap-1.5">
+            <i data-lucide="flag" class="w-3.5 h-3.5 text-rose-600"></i>
+            <span>คำขอลบรูป (PDPA)</span>
+          </p>
+          <h3 id="stat-reports" class="text-2xl sm:text-3xl font-black text-slate-900 mt-1 tracking-tight">--</h3>
+          <p id="stat-reports-sub" class="text-[11px] text-rose-600 font-bold mt-0.5">0 รอดำเนินการ</p>
+        </div>
+        <div class="w-10 h-10 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center border border-rose-100/80">
+          <i data-lucide="flag" class="w-5 h-5"></i>
         </div>
       </div>
+
     </div>
 
     <!-- Navigation Tabs -->
     <div class="flex border-b border-slate-200 gap-2">
-      <button type="button" onclick="switchTab('gallery')" id="tab-btn-gallery" class="px-5 py-3 text-sm font-semibold border-b-2 border-brand-700 text-brand-700 transition flex items-center gap-2">
-        <span>🗂️</span>
+      <button type="button" onclick="switchTab('gallery')" id="tab-btn-gallery" class="px-5 py-3 text-xs sm:text-sm font-bold border-b-2 border-blue-600 text-blue-700 transition flex items-center gap-2 cursor-pointer">
+        <i data-lucide="layout-grid" class="w-4 h-4"></i>
         <span>คลังรูปภาพและสแกน</span>
       </button>
-      <button type="button" onclick="switchTab('upload')" id="tab-btn-upload" class="px-5 py-3 text-sm font-semibold border-b-2 border-transparent text-slate-500 hover:text-slate-800 transition flex items-center gap-2">
-        <span>📥</span>
+      <button type="button" onclick="switchTab('upload')" id="tab-btn-upload" class="px-5 py-3 text-xs sm:text-sm font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-800 transition flex items-center gap-2 cursor-pointer">
+        <i data-lucide="upload-cloud" class="w-4 h-4"></i>
         <span>นำเข้ารูปภาพใหม่</span>
       </button>
-      <button type="button" onclick="switchTab('reports')" id="tab-btn-reports" class="px-5 py-3 text-sm font-semibold border-b-2 border-transparent text-slate-500 hover:text-slate-800 transition flex items-center gap-2">
-        <span>⚖️</span>
+      <button type="button" onclick="switchTab('reports')" id="tab-btn-reports" class="px-5 py-3 text-xs sm:text-sm font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-800 transition flex items-center gap-2 cursor-pointer">
+        <i data-lucide="shield-alert" class="w-4 h-4"></i>
         <span>คำขอลบรูปภาพ (PDPA)</span>
-        <span id="tab-report-badge" class="hidden ml-1 px-1.5 py-0.2 bg-rose-500 text-white text-[10px] rounded-full">0</span>
+        <span id="tab-report-badge" class="hidden ml-1 px-2 py-0.5 bg-rose-500 text-white text-[10px] font-bold rounded-full">0</span>
       </button>
     </div>
 
@@ -204,16 +243,20 @@
     <div id="tab-pane-gallery" class="space-y-4">
       <!-- Search & Filters -->
       <div class="glass-card rounded-2xl p-4 flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3">
-        <div class="flex items-center gap-2 flex-1">
-          <input type="text" id="filter-search" oninput="debounceLoadPhotos()" placeholder="พิมพ์ค้นหาชื่อไฟล์..." class="w-full sm:max-w-xs px-3.5 py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-brand-500">
-          <select id="filter-album" onchange="loadPhotos(1)" class="px-3.5 py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white">
+        <div class="flex flex-wrap items-center gap-2.5 flex-1">
+          <div class="relative w-full sm:max-w-xs">
+            <i data-lucide="search" class="w-4 h-4 absolute inset-y-0 left-3 my-auto text-slate-400 pointer-events-none"></i>
+            <input type="text" id="filter-search" oninput="debounceLoadPhotos()" placeholder="พิมพ์ค้นหาชื่อไฟล์..." class="w-full pl-9 pr-3.5 py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+          </div>
+          <select id="filter-album" onchange="loadPhotos(1)" class="px-3.5 py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white cursor-pointer font-medium text-slate-700">
             <option value="">ทั้งหมด (ทุกอัลบั้ม)</option>
           </select>
-          <button type="button" onclick="triggerScanDisk()" class="scan-disk-btn px-3.5 py-2 bg-brand-50 hover:bg-brand-100 text-brand-700 font-semibold text-xs rounded-xl border border-brand-200 transition flex items-center gap-1.5 whitespace-nowrap shadow-sm">
-            <span>⚡ สแกนไฟล์ในระบบทั้งหมด</span>
+          <button type="button" onclick="triggerScanDisk()" class="scan-disk-btn px-3.5 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold text-xs rounded-xl border border-blue-200 transition flex items-center gap-1.5 whitespace-nowrap shadow-2xs cursor-pointer active:scale-95">
+            <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+            <span>สแกนไฟล์ในระบบทั้งหมด</span>
           </button>
         </div>
-        <div class="flex items-center justify-between sm:justify-end gap-2 text-xs text-slate-500">
+        <div class="flex items-center justify-between sm:justify-end gap-2 text-xs font-semibold text-slate-500">
           <span id="gallery-count-text">กำลังโหลดรายการรูปภาพ...</span>
         </div>
       </div>
@@ -236,8 +279,8 @@
         <!-- Option 1: Direct File Upload -->
         <div class="glass-card rounded-3xl p-6 space-y-4">
           <div class="flex items-center gap-3">
-            <div class="w-10 h-10 rounded-xl bg-brand-50 text-brand-700 flex items-center justify-center text-xl font-bold border border-brand-100">
-              💻
+            <div class="w-10 h-10 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center border border-blue-100">
+              <i data-lucide="upload" class="w-5 h-5"></i>
             </div>
             <div>
               <h3 class="font-bold text-base text-slate-900">อัปโหลดจากคอมพิวเตอร์</h3>
@@ -247,30 +290,33 @@
 
           <div class="space-y-3">
             <div>
-              <label class="block text-xs font-medium text-slate-700 mb-1">ชื่องาน / อัลบั้ม</label>
-              <input type="text" id="upload-album-input" placeholder="เช่น กีฬาสี_2569 หรือ วันวิทยาศาสตร์" class="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-brand-500">
+              <label class="block text-xs font-bold text-slate-700 mb-1">ชื่องาน / อัลบั้ม</label>
+              <input type="text" id="upload-album-input" placeholder="เช่น กีฬาสี_2569 หรือ วันวิทยาศาสตร์" class="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium">
             </div>
 
-            <div id="upload-dropzone" onclick="document.getElementById('upload-files-input').click()" class="border-2 border-dashed border-brand-300 hover:border-brand-500 rounded-2xl p-6 text-center cursor-pointer bg-brand-50/30 transition">
+            <div id="upload-dropzone" onclick="document.getElementById('upload-files-input').click()" class="border-2 border-dashed border-sky-300 hover:border-blue-500 rounded-2xl p-6 text-center cursor-pointer bg-sky-50/30 hover:bg-sky-50/60 transition group">
               <input type="file" id="upload-files-input" multiple accept="image/*" class="hidden" onchange="handleAdminFilesSelected(this.files)">
-              <div class="text-3xl mb-2">📁</div>
-              <p class="text-xs font-semibold text-brand-900">คลิกเลือกรูปภาพ หรือ ลากไฟล์มาวางที่นี่</p>
+              <div class="w-12 h-12 mx-auto mb-2 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center group-hover:scale-110 transition-transform">
+                <i data-lucide="images" class="w-6 h-6"></i>
+              </div>
+              <p class="text-xs font-bold text-slate-800">คลิกเลือกรูปภาพ หรือ ลากไฟล์มาวางที่นี่</p>
               <p class="text-[11px] text-slate-400 mt-1">รองรับ JPG, PNG, WebP (เลือกหลายรูปได้พร้อมกัน)</p>
-              <p id="upload-files-summary" class="text-xs text-brand-700 font-medium mt-2 hidden"></p>
+              <p id="upload-files-summary" class="text-xs text-blue-700 font-bold mt-2 hidden"></p>
             </div>
 
-            <button type="button" id="start-upload-btn" onclick="submitDirectUpload()" disabled class="w-full py-2.5 bg-slate-300 text-white font-medium text-xs rounded-xl transition cursor-not-allowed flex items-center justify-center gap-1.5">
-              <span>🚀 เริ่มอัปโหลดและสแกนใบหน้า</span>
+            <button type="button" id="start-upload-btn" onclick="submitDirectUpload()" disabled class="w-full py-2.5 bg-slate-300 text-white font-bold text-xs rounded-xl transition cursor-not-allowed flex items-center justify-center gap-1.5 shadow-xs">
+              <i data-lucide="sparkles" class="w-4 h-4"></i>
+              <span>เริ่มอัปโหลดและสแกนใบหน้า</span>
             </button>
-            <div id="upload-progress-text" class="text-xs text-center text-slate-500 hidden"></div>
+            <div id="upload-progress-text" class="text-xs text-center text-slate-500 hidden font-medium"></div>
           </div>
         </div>
 
         <!-- Option 2: Facebook Scraper -->
         <div class="glass-card rounded-3xl p-6 space-y-4">
           <div class="flex items-center gap-3">
-            <div class="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center text-xl font-bold border border-blue-100">
-              🌐
+            <div class="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center border border-indigo-100">
+              <i data-lucide="globe" class="w-5 h-5"></i>
             </div>
             <div>
               <h3 class="font-bold text-base text-slate-900">ดูดรูปภาพจาก Facebook</h3>
@@ -280,18 +326,18 @@
 
           <div class="space-y-3">
             <div>
-              <label class="block text-xs font-medium text-slate-700 mb-1">ลิงก์โพสต์ / อัลบั้ม Facebook</label>
-              <input type="url" id="fb-url-input" placeholder="https://www.facebook.com/... หรือ share link" class="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-brand-500 font-mono">
+              <label class="block text-xs font-bold text-slate-700 mb-1">ลิงก์โพสต์ / อัลบั้ม Facebook</label>
+              <input type="url" id="fb-url-input" placeholder="https://www.facebook.com/... หรือ share link" class="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono">
             </div>
 
             <div class="grid grid-cols-2 gap-3">
               <div>
-                <label class="block text-xs font-medium text-slate-700 mb-1">ชื่องาน / โฟลเดอร์</label>
-                <input type="text" id="fb-album-input" value="CRMS6_Students" class="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-brand-500">
+                <label class="block text-xs font-bold text-slate-700 mb-1">ชื่องาน / โฟลเดอร์</label>
+                <input type="text" id="fb-album-input" value="CRMS6_Students" class="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium">
               </div>
               <div>
-                <label class="block text-xs font-medium text-slate-700 mb-1">จำนวนรูปสูงสุด</label>
-                <select id="fb-limit-input" class="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white">
+                <label class="block text-xs font-bold text-slate-700 mb-1">จำนวนรูปสูงสุด</label>
+                <select id="fb-limit-input" class="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white font-medium cursor-pointer">
                   <option value="15">15 รูป</option>
                   <option value="30" selected>30 รูป</option>
                   <option value="50">50 รูป</option>
@@ -300,8 +346,9 @@
               </div>
             </div>
 
-            <button type="button" id="start-fb-btn" onclick="submitFacebookScraper()" class="w-full py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:opacity-95 text-white font-medium text-xs rounded-xl shadow-sm transition">
-              <span>⚡ ดูดรูปภาพและสแกนเข้าระบบ</span>
+            <button type="button" id="start-fb-btn" onclick="submitFacebookScraper()" class="w-full py-2.5 bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-500 hover:opacity-95 text-white font-bold text-xs rounded-xl shadow-md transition cursor-pointer flex items-center justify-center gap-1.5 active:scale-95">
+              <i data-lucide="download-cloud" class="w-4 h-4"></i>
+              <span>ดูดรูปภาพและสแกนเข้าระบบ</span>
             </button>
             <div id="fb-status-box" class="p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs text-slate-600 hidden font-mono whitespace-pre-wrap max-h-36 overflow-y-auto"></div>
           </div>
@@ -311,8 +358,8 @@
         <div class="glass-card rounded-3xl p-6 space-y-4 flex flex-col justify-between">
           <div class="space-y-4">
             <div class="flex items-center gap-3">
-              <div class="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center text-xl font-bold border border-amber-100">
-                🔄
+              <div class="w-10 h-10 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center border border-amber-100">
+                <i data-lucide="hard-drive" class="w-5 h-5"></i>
               </div>
               <div>
                 <h3 class="font-bold text-base text-slate-900">สแกนไฟล์ที่มีอยู่ในระบบ</h3>
@@ -320,18 +367,20 @@
               </div>
             </div>
 
-            <div class="p-4 rounded-2xl bg-amber-50/50 border border-amber-200/60 text-xs text-amber-900 space-y-2">
-              <p class="font-semibold flex items-center gap-1.5">
-                <span>💡</span> เหมาะสำหรับการนำเข้ารูปจำนวนมาก
+            <div class="p-4 rounded-2xl bg-amber-50/60 border border-amber-200/80 text-xs text-amber-900 space-y-2">
+              <p class="font-bold flex items-center gap-1.5">
+                <i data-lucide="lightbulb" class="w-4 h-4 text-amber-600"></i>
+                <span>เหมาะสำหรับการนำเข้ารูปจำนวนมาก</span>
               </p>
               <p class="text-amber-800 text-[11px] leading-relaxed">
-                กรณีครูหรือทีมงานคัดลอกโฟลเดอร์รูปภาพมาวางใน <code class="bg-amber-100 px-1 py-0.5 rounded text-amber-900 font-mono">data/raw/</code> โดยตรงผ่าน Finder หรือ Flashdrive ให้กดปุ่มนี้เพื่อสแกนใบหน้าและเพิ่มเข้าฐานข้อมูลอัตโนมัติ
+                กรณีครูหรือทีมงานคัดลอกโฟลเดอร์รูปภาพมาวางใน <code class="bg-amber-100/80 px-1 py-0.5 rounded text-amber-900 font-mono">data/raw/</code> โดยตรงผ่าน Finder หรือ Google Drive ให้กดปุ่มนี้เพื่อสแกนใบหน้าและเพิ่มเข้าฐานข้อมูลอัตโนมัติ
               </p>
             </div>
           </div>
 
-          <button type="button" onclick="triggerScanDisk()" class="scan-disk-btn w-full py-3 bg-gradient-to-r from-amber-500 to-amber-600 hover:opacity-95 text-white font-semibold text-xs rounded-xl shadow-sm transition flex items-center justify-center gap-1.5">
-            <span>⚡ สแกนไฟล์ในระบบทั้งหมดทันที</span>
+          <button type="button" onclick="triggerScanDisk()" class="scan-disk-btn w-full py-3 bg-gradient-to-r from-amber-500 to-amber-600 hover:opacity-95 text-white font-bold text-xs rounded-xl shadow-md transition flex items-center justify-center gap-1.5 cursor-pointer active:scale-95">
+            <i data-lucide="zap" class="w-4 h-4"></i>
+            <span>สแกนไฟล์ในระบบทั้งหมดทันที</span>
           </button>
         </div>
 
@@ -342,18 +391,22 @@
     <div id="tab-pane-reports" class="hidden space-y-4">
       <div class="glass-card rounded-2xl p-4 flex items-center justify-between">
         <div>
-          <h3 class="font-bold text-sm text-slate-900">รายการคำขอลบรูปภาพตามกฎหมาย PDPA</h3>
-          <p class="text-xs text-slate-500">จัดการคำขอซ่อนหรือลบรูปภาพจากผู้ใช้งาน</p>
+          <h3 class="font-bold text-sm text-slate-900 flex items-center gap-1.5">
+            <i data-lucide="shield-alert" class="w-4 h-4 text-rose-600"></i>
+            <span>รายการคำขอลบรูปภาพตามกฎหมาย PDPA</span>
+          </h3>
+          <p class="text-xs text-slate-500 mt-0.5">จัดการคำขอซ่อนหรือลบรูปภาพจากผู้ใช้งานและนักเรียน</p>
         </div>
-        <button type="button" onclick="loadReports()" class="px-3 py-1.5 text-xs text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition">
-          🔄 รีเฟรช
+        <button type="button" onclick="loadReports()" class="px-3.5 py-1.5 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition inline-flex items-center gap-1.5 cursor-pointer active:scale-95">
+          <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+          <span>รีเฟรช</span>
         </button>
       </div>
 
       <div class="glass-card rounded-2xl overflow-hidden border border-slate-200">
         <div class="overflow-x-auto">
           <table class="w-full text-left text-xs">
-            <thead class="bg-slate-100/70 border-b border-slate-200 text-slate-600 uppercase text-[10px]">
+            <thead class="bg-slate-50 border-b border-slate-200 text-slate-600 uppercase text-[10px] font-bold tracking-wider">
               <tr>
                 <th class="p-3.5">ID</th>
                 <th class="p-3.5">รูปภาพ</th>
@@ -364,7 +417,7 @@
                 <th class="p-3.5 text-right">การจัดการ</th>
               </tr>
             </thead>
-            <tbody id="reports-table-body" class="divide-y divide-slate-100 text-slate-700">
+            <tbody id="reports-table-body" class="divide-y divide-slate-100 text-slate-700 font-medium">
               <!-- Rendered dynamically -->
             </tbody>
           </table>
@@ -374,12 +427,14 @@
 
   </main>
 
-  <!-- Photo Full Preview Modal -->
-  <div id="preview-modal" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-md hidden flex items-center justify-center p-4" onclick="closePreviewModal()">
+  <!-- Photo Full Preview Lightbox Modal -->
+  <div id="preview-modal" class="admin-modal" onclick="closePreviewModal()">
     <div class="relative max-w-4xl w-full flex flex-col items-center" onclick="event.stopPropagation()">
-      <button type="button" onclick="closePreviewModal()" class="absolute -top-12 right-0 w-9 h-9 rounded-full bg-white/20 hover:bg-white/30 text-white flex items-center justify-center text-lg">✕</button>
-      <img id="preview-modal-img" src="" alt="Photo Full View" class="max-h-[80vh] object-contain rounded-2xl shadow-2xl">
-      <div id="preview-modal-caption" class="mt-3 text-xs text-white/80 font-mono"></div>
+      <button type="button" onclick="closePreviewModal()" aria-label="ปิดรูปภาพ" class="absolute top-4 right-4 z-30 w-10 h-10 rounded-full bg-slate-900/80 backdrop-blur-md hover:bg-slate-900 text-white flex items-center justify-center shadow-lg cursor-pointer transition active:scale-95">
+        <i data-lucide="x" class="w-5 h-5"></i>
+      </button>
+      <img id="preview-modal-img" src="" alt="Photo Full View" class="max-h-[75vh] object-contain rounded-2xl shadow-2xl">
+      <div id="preview-modal-caption" class="mt-3 text-xs text-white/90 font-mono bg-black/60 backdrop-blur-xs px-3.5 py-1.5 rounded-full border border-white/10"></div>
     </div>
   </div>
 
@@ -410,11 +465,16 @@
     });
 
     function showAuthModal() {
-      document.getElementById('admin-auth-modal').classList.remove('hidden');
+      document.getElementById('admin-auth-modal').classList.add('active');
+      setTimeout(() => {
+        const inp = document.getElementById('admin-pin-input');
+        if (inp) inp.focus();
+      }, 100);
+      if (window.lucide) lucide.createIcons();
     }
 
     function hideAuthModal() {
-      document.getElementById('admin-auth-modal').classList.add('hidden');
+      document.getElementById('admin-auth-modal').classList.remove('active');
     }
 
     async function submitAdminLogin() {
@@ -437,6 +497,11 @@
           initDashboard();
         } else {
           errBox.classList.remove('hidden');
+          const modalBox = document.getElementById('admin-auth-modal').querySelector('div');
+          if (modalBox) {
+            modalBox.classList.add('animate-shake');
+            setTimeout(() => modalBox.classList.remove('animate-shake'), 450);
+          }
         }
       } catch (err) {
         errBox.classList.remove('hidden');
@@ -469,6 +534,7 @@
       loadOverview();
       loadPhotos(1);
       loadReports();
+      if (window.lucide) lucide.createIcons();
     }
 
     async function loadOverview() {
@@ -484,10 +550,12 @@
         document.getElementById('stat-reports').innerText = d.reports_total.toLocaleString();
         document.getElementById('stat-reports-sub').innerText = `${d.reports_pending} รอดำเนินการ`;
 
+        const badge = document.getElementById('tab-report-badge');
         if (d.reports_pending > 0) {
-          const badge = document.getElementById('tab-report-badge');
           badge.innerText = d.reports_pending;
           badge.classList.remove('hidden');
+        } else {
+          badge.classList.add('hidden');
         }
 
         // populate album filter options
@@ -501,6 +569,7 @@
           albumSelect.appendChild(opt);
         });
         albumSelect.value = currentVal;
+        if (window.lucide) lucide.createIcons();
       } catch (err) {
         console.error('Error loading overview:', err);
       }
@@ -543,28 +612,30 @@
           card.className = 'glass-card rounded-2xl overflow-hidden flex flex-col group relative border border-slate-200 transition hover:shadow-lg';
           
           const hiddenBadge = p.is_hidden 
-            ? `<span class="absolute top-2 left-2 z-10 bg-rose-600 text-white text-[9px] font-bold px-2 py-0.5 rounded-full shadow">🚫 ซ่อนอยู่</span>` 
+            ? `<span class="absolute top-2 left-2 z-10 bg-rose-600 text-white text-[9px] font-bold px-2 py-0.5 rounded-full shadow flex items-center gap-1"><i data-lucide="eye-off" class="w-2.5 h-2.5"></i> ซ่อนอยู่</span>` 
             : '';
 
           card.innerHTML = `
-            <div class="relative aspect-square bg-slate-100 overflow-hidden cursor-pointer" onclick="openPreviewModal('${p.photo_url}', '${p.rel_path} (${p.event_name})')">
+            <div class="relative aspect-square bg-slate-100 overflow-hidden cursor-pointer" onclick="openPreviewModal('${p.photo_url}', '${escapeHtml(p.rel_path)} (${escapeHtml(p.event_name)})')">
               ${hiddenBadge}
               <img src="${p.thumb_url}" alt="Photo" loading="lazy" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300">
-              <span class="absolute bottom-2 right-2 bg-black/60 backdrop-blur-sm text-white text-[10px] px-2 py-0.5 rounded-full">
-                👤 ${p.face_count} หน้า
+              <span class="absolute bottom-2 right-2 bg-slate-900/80 backdrop-blur-xs text-white text-[10px] font-semibold px-2 py-0.5 rounded-full flex items-center gap-1 shadow-xs">
+                <i data-lucide="user" class="w-3 h-3 text-cyan-400"></i> ${p.face_count} หน้า
               </span>
             </div>
             <div class="p-2.5 flex-1 flex flex-col justify-between bg-white text-[11px]">
               <div>
-                <p class="font-medium text-slate-800 truncate" title="${p.rel_path}">${p.rel_path}</p>
-                <p class="text-[10px] text-slate-400 truncate">${p.event_name}</p>
+                <p class="font-bold text-slate-800 truncate" title="${escapeHtml(p.rel_path)}">${escapeHtml(p.rel_path)}</p>
+                <p class="text-[10px] text-slate-400 truncate mt-0.5">${escapeHtml(p.event_name)}</p>
               </div>
-              <div class="pt-2 flex items-center justify-between border-t border-slate-100 mt-2">
-                <button type="button" onclick="toggleVisibility(${p.id}, ${p.is_hidden ? 0 : 1})" class="text-[10px] px-2 py-1 rounded-lg ${p.is_hidden ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'} transition font-medium">
-                  ${p.is_hidden ? '👁️ เลิกซ่อน' : '🚫 ซ่อน'}
+              <div class="pt-2 flex items-center justify-between border-t border-slate-100 mt-2 gap-1.5">
+                <button type="button" onclick="toggleVisibility(${p.id}, ${p.is_hidden ? 0 : 1})" class="min-h-[30px] flex-1 text-[10px] px-2 py-1 rounded-lg ${p.is_hidden ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200' : 'bg-slate-100 text-slate-600 hover:bg-slate-200 border border-slate-200'} transition font-bold inline-flex items-center justify-center gap-1 cursor-pointer active:scale-95">
+                  <i data-lucide="${p.is_hidden ? 'eye' : 'eye-off'}" class="w-3 h-3"></i>
+                  <span>${p.is_hidden ? 'เลิกซ่อน' : 'ซ่อน'}</span>
                 </button>
-                <button type="button" onclick="deleteSinglePhoto(${p.id}, '${p.rel_path}')" class="text-[10px] px-2 py-1 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 transition font-medium">
-                  🗑️ ลบ
+                <button type="button" onclick="deleteSinglePhoto(${p.id}, '${escapeHtml(p.rel_path)}')" class="min-h-[30px] text-[10px] px-2.5 py-1 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 border border-rose-200 transition font-bold inline-flex items-center justify-center gap-1 cursor-pointer active:scale-95" title="ลบรูปถาวร">
+                  <i data-lucide="trash-2" class="w-3 h-3"></i>
+                  <span>ลบ</span>
                 </button>
               </div>
             </div>
@@ -573,6 +644,7 @@
         });
 
         renderPagination(data.page, data.total_pages);
+        if (window.lucide) lucide.createIcons();
       } catch (err) {
         console.error('Error fetching photos:', err);
       }
@@ -585,24 +657,25 @@
 
       if (current > 1) {
         const prev = document.createElement('button');
-        prev.className = 'px-3 py-1.5 text-xs rounded-xl bg-white border border-slate-200 text-slate-700 hover:bg-slate-50';
-        prev.innerText = '← ก่อนหน้า';
+        prev.className = 'px-3 py-1.5 text-xs font-bold rounded-xl bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 cursor-pointer inline-flex items-center gap-1 shadow-2xs';
+        prev.innerHTML = '<i data-lucide="chevron-left" class="w-3.5 h-3.5"></i> ก่อนหน้า';
         prev.onclick = () => loadPhotos(current - 1);
         ctr.appendChild(prev);
       }
 
       const info = document.createElement('span');
-      info.className = 'text-xs text-slate-500 font-medium px-2';
+      info.className = 'text-xs text-slate-500 font-bold px-2';
       info.innerText = `หน้า ${current} จาก ${total}`;
       ctr.appendChild(info);
 
       if (current < total) {
         const next = document.createElement('button');
-        next.className = 'px-3 py-1.5 text-xs rounded-xl bg-white border border-slate-200 text-slate-700 hover:bg-slate-50';
-        next.innerText = 'ถัดไป →';
+        next.className = 'px-3 py-1.5 text-xs font-bold rounded-xl bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 cursor-pointer inline-flex items-center gap-1 shadow-2xs';
+        next.innerHTML = 'ถัดไป <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>';
         next.onclick = () => loadPhotos(current + 1);
         ctr.appendChild(next);
       }
+      if (window.lucide) lucide.createIcons();
     }
 
     async function toggleVisibility(photoId, isHidden) {
@@ -656,7 +729,7 @@
         sum.classList.remove('hidden');
         btn.disabled = false;
         btn.classList.remove('bg-slate-300', 'cursor-not-allowed');
-        btn.classList.add('bg-brand-700', 'hover:bg-brand-800', 'cursor-pointer');
+        btn.classList.add('bg-blue-600', 'hover:bg-blue-700', 'cursor-pointer');
       } else {
         sum.classList.add('hidden');
         btn.disabled = true;
@@ -671,9 +744,10 @@
       const prog = document.getElementById('upload-progress-text');
 
       btn.disabled = true;
-      btn.innerText = '⏳ กำลังอัปโหลดและสแกนใบหน้าด้วย AI...';
+      btn.innerHTML = '<span class="inline-block animate-spin mr-1.5"><i data-lucide="loader-2" class="w-4 h-4"></i></span> กำลังอัปโหลดและสแกนใบหน้าด้วย AI...';
       prog.classList.remove('hidden');
       prog.innerText = `กำลังส่งไฟล์ ${selectedFilesForUpload.length} รูปไปยังเซิร์ฟเวอร์...`;
+      if (window.lucide) lucide.createIcons();
 
       const formData = new FormData();
       formData.append('album', album);
@@ -691,7 +765,7 @@
           selectedFilesForUpload = [];
           document.getElementById('upload-files-input').value = '';
           document.getElementById('upload-files-summary').classList.add('hidden');
-          btn.innerText = '🚀 เริ่มอัปโหลดและสแกนใบหน้า';
+          btn.innerHTML = '<i data-lucide="sparkles" class="w-4 h-4"></i><span>เริ่มอัปโหลดและสแกนใบหน้า</span>';
           btn.disabled = true;
           btn.classList.add('bg-slate-300', 'cursor-not-allowed');
           prog.classList.add('hidden');
@@ -703,11 +777,12 @@
       } catch (err) {
         alert('เกิดข้อผิดพลาดในการเชื่อมต่อ');
       } finally {
-        btn.innerText = '🚀 เริ่มอัปโหลดและสแกนใบหน้า';
+        btn.innerHTML = '<i data-lucide="sparkles" class="w-4 h-4"></i><span>เริ่มอัปโหลดและสแกนใบหน้า</span>';
+        if (window.lucide) lucide.createIcons();
       }
     }
 
-    // Facebook Scraper Handler — ส่งงานเข้าพื้นหลัง แล้วถามความคืบหน้าทุก 2.5 วินาที
+    // Facebook Scraper Handler
     async function submitFacebookScraper() {
       const url = document.getElementById('fb-url-input').value.trim();
       const album = document.getElementById('fb-album-input').value.trim() || 'CRMS6_Students';
@@ -721,9 +796,10 @@
       }
 
       btn.disabled = true;
-      btn.innerHTML = '<span class="inline-block animate-spin mr-1.5">⏳</span> งานดึงรูปกำลังทำงาน...';
+      btn.innerHTML = '<span class="inline-block animate-spin mr-1.5"><i data-lucide="loader-2" class="w-4 h-4"></i></span> งานดึงรูปกำลังทำงาน...';
       statusBox.classList.remove('hidden');
       statusBox.innerText = '🚀 ส่งคำขอแล้ว! ระบบจะดูดรูป + สแกนหน้าในพื้นหลัง (ความคืบหน้าสดๆ จะขึ้นที่นี่)\n';
+      if (window.lucide) lucide.createIcons();
 
       try {
         const res = await fetch('/api/admin/fetch_facebook', {
@@ -745,7 +821,7 @@
           if (s.lines && s.lines.length) {
             statusBox.innerText = '🚀 ความคืบหน้าล่าสุด:\n' + s.lines.slice(-6).join('\n');
           }
-          if (!s.running && !s.done) {   // เซิร์ฟเวอร์รีสตาร์ทระหว่างทาง — สถานะหาย
+          if (!s.running && !s.done) {
             statusBox.innerText += '\n⚠️ เสียการเชื่อมต่อสถานะ (เซิร์ฟเวอร์อาจรีสตาร์ท) — เช็คจำนวนรูปในคลังด้านบนได้เลย';
             break;
           }
@@ -765,7 +841,8 @@
         statusBox.innerText += '\n❌ เกิดข้อผิดพลาดในการส่งคำขอ: ' + err;
       } finally {
         btn.disabled = false;
-        btn.innerHTML = '<span>⚡ ดูดรูปภาพและสแกนเข้าระบบ</span>';
+        btn.innerHTML = '<i data-lucide="download-cloud" class="w-4 h-4"></i><span>ดูดรูปภาพและสแกนเข้าระบบ</span>';
+        if (window.lucide) lucide.createIcons();
       }
     }
 
@@ -776,8 +853,9 @@
       const scanBtns = document.querySelectorAll('.scan-disk-btn');
       scanBtns.forEach(b => {
         b.disabled = true;
-        b.innerHTML = '<span class="inline-block animate-spin mr-1">⏳</span> กำลังสแกน...';
+        b.innerHTML = '<span class="inline-block animate-spin mr-1"><i data-lucide="loader-2" class="w-3.5 h-3.5"></i></span> กำลังสแกน...';
       });
+      if (window.lucide) lucide.createIcons();
 
       try {
         const res = await fetch('/api/admin/scan_disk', {
@@ -796,8 +874,9 @@
       } finally {
         scanBtns.forEach(b => {
           b.disabled = false;
-          b.innerHTML = '<span>⚡ สแกนไฟล์ในระบบทั้งหมด</span>';
+          b.innerHTML = '<i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i><span>สแกนไฟล์ในระบบทั้งหมด</span>';
         });
+        if (window.lucide) lucide.createIcons();
       }
     }
 
@@ -823,44 +902,46 @@
           const tr = document.createElement('tr');
           tr.className = 'hover:bg-slate-50/80 transition';
 
-          let statusBadge = '<span class="bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full font-semibold">รอดำเนินการ</span>';
-          if (r.status === 'approved') statusBadge = '<span class="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-semibold">อนุมัติแล้ว</span>';
-          if (r.status === 'rejected') statusBadge = '<span class="bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full font-semibold">ปฏิเสธแล้ว</span>';
+          let statusBadge = '<span class="bg-amber-100 text-amber-800 px-2.5 py-0.5 rounded-full font-bold text-[10px] inline-flex items-center gap-1"><i data-lucide="clock" class="w-3 h-3"></i> รอดำเนินการ</span>';
+          if (r.status === 'approved') statusBadge = '<span class="bg-emerald-100 text-emerald-800 px-2.5 py-0.5 rounded-full font-bold text-[10px] inline-flex items-center gap-1"><i data-lucide="check" class="w-3 h-3"></i> อนุมัติแล้ว</span>';
+          if (r.status === 'rejected') statusBadge = '<span class="bg-slate-100 text-slate-600 px-2.5 py-0.5 rounded-full font-bold text-[10px] inline-flex items-center gap-1"><i data-lucide="x" class="w-3 h-3"></i> ปฏิเสธแล้ว</span>';
 
           tr.innerHTML = `
-            <td class="p-3.5 font-mono font-medium">#${r.id}</td>
+            <td class="p-3.5 font-mono font-bold text-slate-500">#${r.id}</td>
             <td class="p-3.5">
-              <div class="w-12 h-12 rounded-lg overflow-hidden bg-slate-100 border border-slate-200 cursor-pointer" onclick="openPreviewModal('${r.photo_url}', 'คำขอ #${r.id} - ${r.rel_path}')">
+              <div class="w-12 h-12 rounded-xl overflow-hidden bg-slate-100 border border-slate-200 cursor-pointer shadow-2xs hover:scale-105 transition-transform" onclick="openPreviewModal('${r.photo_url}', 'คำขอ #${r.id} - ${escapeHtml(r.rel_path)}')">
                 <img src="${r.thumb_url}" class="w-full h-full object-cover">
               </div>
             </td>
-            <td class="p-3.5 max-w-xs break-words font-medium text-slate-900">${r.reason}</td>
-            <td class="p-3.5 text-slate-500">${r.contact_info || '-'}</td>
-            <td class="p-3.5 text-slate-400 whitespace-nowrap">${r.created_at}</td>
+            <td class="p-3.5 max-w-xs break-words font-semibold text-slate-900">${escapeHtml(r.reason)}</td>
+            <td class="p-3.5 text-slate-600">${escapeHtml(r.contact_info || '-')}</td>
+            <td class="p-3.5 text-slate-400 whitespace-nowrap">${escapeHtml(r.created_at)}</td>
             <td class="p-3.5">${statusBadge}</td>
             <td class="p-3.5 text-right whitespace-nowrap space-x-1">
               ${r.status === 'pending' ? `
-                <button type="button" onclick="actionOnReport(${r.id}, 'approve')" class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition font-medium text-[11px]" title="อนุมัติและซ่อนรูปภาพทันที">
-                  ✓ อนุมัติ & ซ่อนรูป
+                <button type="button" onclick="actionOnReport(${r.id}, 'approve')" class="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition font-bold text-[11px] inline-flex items-center gap-1 shadow-2xs cursor-pointer active:scale-95" title="อนุมัติและซ่อนรูปภาพทันที">
+                  <i data-lucide="check" class="w-3 h-3"></i> อนุมัติ & ซ่อน
                 </button>
-                <button type="button" onclick="actionOnReport(${r.id}, 'delete')" class="px-2.5 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded-lg transition font-medium text-[11px]" title="ลบไฟล์รูปภาพและเวกเตอร์ออกจากระบบถาวรตามกฎหมาย PDPA">
-                  🗑️ ลบถาวร (PDPA)
+                <button type="button" onclick="actionOnReport(${r.id}, 'delete')" class="px-2.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg transition font-bold text-[11px] inline-flex items-center gap-1 shadow-2xs cursor-pointer active:scale-95" title="ลบไฟล์รูปภาพและเวกเตอร์ออกจากระบบถาวรตามกฎหมาย PDPA">
+                  <i data-lucide="trash-2" class="w-3 h-3"></i> ลบถาวร
                 </button>
-                <button type="button" onclick="actionOnReport(${r.id}, 'reject')" class="px-2.5 py-1 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg transition font-medium text-[11px]">
-                  ✕ ปฏิเสธ
+                <button type="button" onclick="actionOnReport(${r.id}, 'reject')" class="px-2.5 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg transition font-bold text-[11px] inline-flex items-center gap-1 cursor-pointer active:scale-95">
+                  <i data-lucide="x" class="w-3 h-3"></i> ปฏิเสธ
                 </button>
               ` : `
-                <button type="button" onclick="actionOnReport(${r.id}, '${r.is_hidden ? 'unhide' : 'hide'}')" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg transition text-[11px]">
-                  ${r.is_hidden ? '👁️ เลิกซ่อน' : '🚫 ซ่อนรูป'}
+                <button type="button" onclick="actionOnReport(${r.id}, '${r.is_hidden ? 'unhide' : 'hide'}')" class="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition text-[11px] font-bold inline-flex items-center gap-1 cursor-pointer active:scale-95">
+                  <i data-lucide="${r.is_hidden ? 'eye' : 'eye-off'}" class="w-3 h-3"></i>
+                  <span>${r.is_hidden ? 'เลิกซ่อน' : 'ซ่อนรูป'}</span>
                 </button>
-                <button type="button" onclick="actionOnReport(${r.id}, 'delete')" class="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-lg transition font-medium text-[11px]" title="ลบไฟล์รูปภาพและเวกเตอร์ออกจากระบบถาวรตามกฎหมาย PDPA">
-                  🗑️ ลบถาวร (PDPA)
+                <button type="button" onclick="actionOnReport(${r.id}, 'delete')" class="px-2.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 rounded-lg transition font-bold text-[11px] inline-flex items-center gap-1 cursor-pointer active:scale-95" title="ลบไฟล์รูปภาพและเวกเตอร์ออกจากระบบถาวรตามกฎหมาย PDPA">
+                  <i data-lucide="trash-2" class="w-3 h-3"></i> ลบถาวร
                 </button>
               `}
             </td>
           `;
           tbody.appendChild(tr);
         });
+        if (window.lucide) lucide.createIcons();
       } catch (err) {
         tbody.innerHTML = '<tr><td colspan="7" class="p-6 text-center text-rose-500">เกิดข้อผิดพลาดในการโหลดข้อมูล</td></tr>';
       }
@@ -893,25 +974,45 @@
     function openPreviewModal(imgUrl, caption) {
       document.getElementById('preview-modal-img').src = imgUrl;
       document.getElementById('preview-modal-caption').innerText = caption;
-      document.getElementById('preview-modal').classList.remove('hidden');
+      document.getElementById('preview-modal').classList.add('active');
     }
 
     function closePreviewModal() {
-      document.getElementById('preview-modal').classList.add('hidden');
+      document.getElementById('preview-modal').classList.remove('active');
     }
 
     function switchTab(tab) {
       ['gallery', 'upload', 'reports'].forEach(t => {
         document.getElementById(`tab-pane-${t}`).classList.add('hidden');
         const b = document.getElementById(`tab-btn-${t}`);
-        b.classList.remove('border-brand-700', 'text-brand-700');
+        b.classList.remove('border-blue-600', 'text-blue-700');
         b.classList.add('border-transparent', 'text-slate-500');
       });
       document.getElementById(`tab-pane-${tab}`).classList.remove('hidden');
       const activeBtn = document.getElementById(`tab-btn-${tab}`);
       activeBtn.classList.remove('border-transparent', 'text-slate-500');
-      activeBtn.classList.add('border-brand-700', 'text-brand-700');
+      activeBtn.classList.add('border-blue-600', 'text-blue-700');
+      if (window.lucide) lucide.createIcons();
     }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    // Global Keydown
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        if (document.getElementById('preview-modal').classList.contains('active')) {
+          closePreviewModal();
+        }
+      }
+    });
   </script>
 </body>
 </html>
