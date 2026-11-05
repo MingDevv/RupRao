@@ -712,13 +712,15 @@ async def upload_photos_admin(
 
         content = await up_file.read()
         save_path = album_dir / safe_name
-        with open(save_path, "wb") as f:
-            f.write(content)
+        is_preexisting = save_path.exists()
+        if not is_preexisting:
+            with open(save_path, "wb") as f:
+                f.write(content)
 
         nparr = np.frombuffer(content, np.uint8)
         img_bgr = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
         if img_bgr is None:
-            if save_path.exists():
+            if not is_preexisting and save_path.exists():
                 try:
                     save_path.unlink()
                 except Exception:
@@ -730,7 +732,7 @@ async def upload_photos_admin(
         try:
             make_thumbs.create_thumbnail(save_path, thumb_path)
         except Exception as thumb_err:
-            if save_path.exists():
+            if not is_preexisting and save_path.exists():
                 try:
                     save_path.unlink()
                 except Exception:
@@ -776,7 +778,7 @@ async def upload_photos_admin(
                     thumb_path.unlink()
                 except Exception:
                     pass
-            if save_path.exists():
+            if not is_preexisting and save_path.exists():
                 try:
                     save_path.unlink()
                 except Exception:

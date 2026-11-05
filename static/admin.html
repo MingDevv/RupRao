@@ -284,31 +284,72 @@
             </div>
             <div>
               <h3 class="font-bold text-base text-slate-900">อัปโหลดจากคอมพิวเตอร์</h3>
-              <p class="text-xs text-slate-500">ลากไฟล์รูปภาพกิจกรรมมาวางเพื่อสแกนใบหน้า</p>
+              <p class="text-xs text-slate-500">ลากไฟล์รูปภาพหรือทั้งโฟลเดอร์มาวางเพื่อสแกนใบหน้า</p>
             </div>
           </div>
 
           <div class="space-y-3">
             <div>
               <label class="block text-xs font-bold text-slate-700 mb-1">ชื่องาน / อัลบั้ม</label>
-              <input type="text" id="upload-album-input" placeholder="เช่น กีฬาสี_2569 หรือ วันวิทยาศาสตร์" class="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium">
+              <input type="text" id="upload-album-input" list="album-suggestions" placeholder="เช่น 03-12-68 กีฬาสี หรือ วันวิทยาศาสตร์" class="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium">
+              <datalist id="album-suggestions">
+                <option value="03-12-68 กีฬาสี"></option>
+                <option value="68-12-01 บรรยากาศการแข่งกีฬาสี วันที่ 1"></option>
+                <option value="68-12-03 เดินขบวนกีฬาสี 68"></option>
+              </datalist>
             </div>
 
-            <div id="upload-dropzone" onclick="document.getElementById('upload-files-input').click()" class="border-2 border-dashed border-sky-300 hover:border-blue-500 rounded-2xl p-6 text-center cursor-pointer bg-sky-50/30 hover:bg-sky-50/60 transition group">
+            <div id="upload-dropzone" class="border-2 border-dashed border-sky-300 hover:border-blue-500 rounded-2xl p-5 text-center cursor-pointer bg-sky-50/30 hover:bg-sky-50/60 transition group select-none">
               <input type="file" id="upload-files-input" multiple accept="image/*" class="hidden" onchange="handleAdminFilesSelected(this.files)">
-              <div class="w-12 h-12 mx-auto mb-2 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center group-hover:scale-110 transition-transform">
-                <i data-lucide="images" class="w-6 h-6"></i>
+              <input type="file" id="upload-folder-input" webkitdirectory directory multiple class="hidden" onchange="handleAdminFolderSelected(this.files)">
+              
+              <div class="w-11 h-11 mx-auto mb-2 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center group-hover:scale-110 transition-transform">
+                <i data-lucide="images" class="w-5 h-5"></i>
               </div>
-              <p class="text-xs font-bold text-slate-800">คลิกเลือกรูปภาพ หรือ ลากไฟล์มาวางที่นี่</p>
-              <p class="text-[11px] text-slate-400 mt-1">รองรับ JPG, PNG, WebP (เลือกหลายรูปได้พร้อมกัน)</p>
-              <p id="upload-files-summary" class="text-xs text-blue-700 font-bold mt-2 hidden"></p>
+              <p class="text-xs font-bold text-slate-800">ลากไฟล์รูปภาพ หรือโฟลเดอร์มาวางที่นี่</p>
+              <p class="text-[11px] text-slate-400 mt-0.5">รองรับ JPG, PNG, WebP ทุกล็อต</p>
+
+              <div class="flex items-center justify-center gap-2 mt-3 pt-2 border-t border-sky-200/50" onclick="event.stopPropagation()">
+                <button type="button" onclick="document.getElementById('upload-files-input').click()" class="px-3 py-1.5 text-xs font-bold bg-white text-blue-700 border border-blue-200 rounded-lg shadow-xs hover:bg-blue-50 transition cursor-pointer flex items-center gap-1">
+                  <i data-lucide="file-image" class="w-3.5 h-3.5"></i>
+                  <span>เลือกไฟล์</span>
+                </button>
+                <button type="button" onclick="document.getElementById('upload-folder-input').click()" class="px-3 py-1.5 text-xs font-bold bg-white text-indigo-700 border border-indigo-200 rounded-lg shadow-xs hover:bg-indigo-50 transition cursor-pointer flex items-center gap-1">
+                  <i data-lucide="folder-open" class="w-3.5 h-3.5"></i>
+                  <span>เลือกทั้งโฟลเดอร์</span>
+                </button>
+              </div>
+
+              <p id="upload-files-summary" class="text-xs text-blue-700 font-bold mt-2.5 hidden bg-blue-100/70 py-1 px-3 rounded-lg inline-block"></p>
             </div>
 
+            <!-- Upload & Scan Action Button -->
             <button type="button" id="start-upload-btn" onclick="submitDirectUpload()" disabled class="w-full py-2.5 bg-slate-300 text-white font-bold text-xs rounded-xl transition cursor-not-allowed flex items-center justify-center gap-1.5 shadow-xs">
               <i data-lucide="sparkles" class="w-4 h-4"></i>
               <span>เริ่มอัปโหลดและสแกนใบหน้า</span>
             </button>
-            <div id="upload-progress-text" class="text-xs text-center text-slate-500 hidden font-medium"></div>
+
+            <!-- Real-time Chunked Progress Box -->
+            <div id="upload-progress-box" class="hidden p-4 rounded-2xl bg-blue-50/70 border border-blue-200/80 space-y-2.5">
+              <div class="flex items-center justify-between text-xs font-bold text-slate-800">
+                <span class="flex items-center gap-1.5 text-blue-700">
+                  <i data-lucide="loader-2" class="w-3.5 h-3.5 animate-spin"></i>
+                  <span id="upload-progress-title">กำลังสแกนใบหน้าด้วย AI...</span>
+                </span>
+                <span id="upload-progress-percent" class="font-mono text-blue-700 font-extrabold text-sm">0%</span>
+              </div>
+              <div class="w-full bg-slate-200/80 rounded-full h-2.5 overflow-hidden">
+                <div id="upload-progress-bar" class="h-2.5 rounded-full bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-500 transition-all duration-300" style="width: 0%"></div>
+              </div>
+              <div class="flex items-center justify-between text-[11px] text-slate-500 font-medium">
+                <span id="upload-progress-detail">ประมวลผล 0 จาก 0 รูป</span>
+                <span id="upload-progress-faces" class="text-indigo-600 font-bold">พบ 0 ใบหน้า</span>
+              </div>
+              <button type="button" id="upload-cancel-btn" onclick="cancelDirectUpload()" class="w-full mt-1.5 py-1.5 text-xs text-rose-600 hover:text-rose-700 bg-white hover:bg-rose-50 border border-rose-200 rounded-xl font-semibold transition cursor-pointer">
+                หยุดการอัปโหลดชั่วคราว
+              </button>
+            </div>
+
           </div>
         </div>
 
@@ -530,7 +571,103 @@
       showAuthModal();
     }
 
+    let dropzoneInitialized = false;
+
+    function initDropzone() {
+      if (dropzoneInitialized) return;
+      const dropzone = document.getElementById('upload-dropzone');
+      if (!dropzone) return;
+      dropzoneInitialized = true;
+
+      ['dragenter', 'dragover'].forEach(name => {
+        dropzone.addEventListener(name, (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          dropzone.classList.add('border-blue-500', 'bg-blue-100/50');
+        });
+      });
+
+      ['dragleave', 'drop'].forEach(name => {
+        dropzone.addEventListener(name, (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          dropzone.classList.remove('border-blue-500', 'bg-blue-100/50');
+        });
+      });
+
+      dropzone.addEventListener('drop', async (e) => {
+        const files = await getFilesFromDataTransfer(e.dataTransfer);
+        if (files && files.length > 0) {
+          handleAdminFilesSelected(files);
+        }
+      });
+    }
+
+    async function getFilesFromDataTransfer(dataTransfer) {
+      const files = [];
+      const items = dataTransfer.items;
+
+      function isImageFile(f) {
+        return (f.type && f.type.startsWith('image/')) || /\.(jpe?g|png|webp|bmp)$/i.test(f.name);
+      }
+
+      if (!items) {
+        return Array.from(dataTransfer.files || []).filter(isImageFile);
+      }
+
+      async function traverseEntry(entry) {
+        if (entry.isFile) {
+          return new Promise((resolve) => {
+            entry.file(f => {
+              if (isImageFile(f)) files.push(f);
+              resolve();
+            }, () => resolve());
+          });
+        } else if (entry.isDirectory) {
+          const reader = entry.createReader();
+          return new Promise((resolve) => {
+            const readEntries = () => {
+              reader.readEntries(async (entries) => {
+                if (entries.length === 0) {
+                  resolve();
+                } else {
+                  for (const child of entries) {
+                    await traverseEntry(child);
+                  }
+                  readEntries();
+                }
+              }, () => resolve());
+            };
+            readEntries();
+          });
+        }
+      }
+
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        if (item.webkitGetAsEntry) {
+          const entry = item.webkitGetAsEntry();
+          if (entry) {
+            if (entry.isDirectory) {
+              const albumInput = document.getElementById('upload-album-input');
+              if (albumInput && !albumInput.value.trim()) {
+                albumInput.value = entry.name;
+              }
+            }
+            await traverseEntry(entry);
+            continue;
+          }
+        }
+        const file = item.getAsFile ? item.getAsFile() : null;
+        if (file && isImageFile(file)) {
+          files.push(file);
+        }
+      }
+      return files;
+    }
+
     function initDashboard() {
+      initDropzone();
       loadOverview();
       loadPhotos(1);
       loadReports();
@@ -720,12 +857,15 @@
     }
 
     // Direct Upload Handlers
+    let uploadCancelled = false;
+
     function handleAdminFilesSelected(files) {
-      selectedFilesForUpload = Array.from(files);
+      const validFiles = Array.from(files).filter(f => (f.type && f.type.startsWith('image/')) || /\.(jpe?g|png|webp|bmp)$/i.test(f.name));
+      selectedFilesForUpload = validFiles;
       const sum = document.getElementById('upload-files-summary');
       const btn = document.getElementById('start-upload-btn');
       if (selectedFilesForUpload.length > 0) {
-        sum.innerText = `เลือกแล้ว ${selectedFilesForUpload.length} ไฟล์`;
+        sum.innerText = `เลือกแล้ว ${selectedFilesForUpload.length.toLocaleString()} ไฟล์พร้อมสแกน`;
         sum.classList.remove('hidden');
         btn.disabled = false;
         btn.classList.remove('bg-slate-300', 'cursor-not-allowed');
@@ -735,48 +875,120 @@
         btn.disabled = true;
         btn.classList.add('bg-slate-300', 'cursor-not-allowed');
       }
+      if (window.lucide) lucide.createIcons();
+    }
+
+    function handleAdminFolderSelected(files) {
+      const fileArr = Array.from(files).filter(f => (f.type && f.type.startsWith('image/')) || /\.(jpe?g|png|webp|bmp)$/i.test(f.name));
+      if (fileArr.length > 0) {
+        const rel = fileArr[0].webkitRelativePath;
+        if (rel && rel.includes('/')) {
+          const folderName = rel.split('/')[0];
+          const albumInput = document.getElementById('upload-album-input');
+          if (!albumInput.value.trim()) {
+            albumInput.value = folderName;
+          }
+        }
+      }
+      handleAdminFilesSelected(fileArr);
+    }
+
+    function cancelDirectUpload() {
+      if (confirm('คุณต้องการหยุดการอัปโหลดที่เหลือชั่วคราวหรือไม่?\n(รูปภาพที่สแกนเสร็จไปแล้วจะยังคงอยู่ในระบบ)')) {
+        uploadCancelled = true;
+        const statusText = document.getElementById('upload-progress-title');
+        if (statusText) statusText.innerText = 'กำลังหยุดการประมวลผล...';
+      }
     }
 
     async function submitDirectUpload() {
       if (selectedFilesForUpload.length === 0) return;
-      const album = document.getElementById('upload-album-input').value.trim() || 'งานกิจกรรมทั่วไป';
-      const btn = document.getElementById('start-upload-btn');
-      const prog = document.getElementById('upload-progress-text');
+      const albumInput = document.getElementById('upload-album-input');
+      const album = albumInput.value.trim() || '03-12-68 กีฬาสี';
+      albumInput.value = album;
 
+      const btn = document.getElementById('start-upload-btn');
+      const box = document.getElementById('upload-progress-box');
+      const pTitle = document.getElementById('upload-progress-title');
+      const pPercent = document.getElementById('upload-progress-percent');
+      const pBar = document.getElementById('upload-progress-bar');
+      const pDetail = document.getElementById('upload-progress-detail');
+      const pFaces = document.getElementById('upload-progress-faces');
+
+      uploadCancelled = false;
       btn.disabled = true;
-      btn.innerHTML = '<span class="inline-block animate-spin mr-1.5"><i data-lucide="loader-2" class="w-4 h-4"></i></span> กำลังอัปโหลดและสแกนใบหน้าด้วย AI...';
-      prog.classList.remove('hidden');
-      prog.innerText = `กำลังส่งไฟล์ ${selectedFilesForUpload.length} รูปไปยังเซิร์ฟเวอร์...`;
+      btn.classList.add('hidden');
+      box.classList.remove('hidden');
+
+      const totalFiles = selectedFilesForUpload.length;
+      const BATCH_SIZE = 5;
+      let totalSaved = 0;
+      let totalFaces = 0;
+      let processedFiles = 0;
+
+      pTitle.innerText = 'กำลังอัปโหลดและสแกนใบหน้าด้วย AI...';
+      pPercent.innerText = '0%';
+      pBar.style.width = '0%';
+      pDetail.innerText = `ประมวลผล 0 จาก ${totalFiles.toLocaleString()} รูป`;
+      pFaces.innerText = 'พบ 0 ใบหน้า';
       if (window.lucide) lucide.createIcons();
 
-      const formData = new FormData();
-      formData.append('album', album);
-      selectedFilesForUpload.forEach(f => formData.append('files', f));
-
       try {
-        const res = await fetch('/api/admin/upload', {
-          method: 'POST',
-          headers: { 'X-Admin-PIN': adminToken },
-          body: formData
-        });
-        const data = await res.json();
-        if (data.success) {
-          alert(`✨ สำเร็จ! ${data.message}`);
+        for (let i = 0; i < totalFiles; i += BATCH_SIZE) {
+          if (uploadCancelled) {
+            alert(`⏸️ หยุดการอัปโหลดแล้ว สแกนเสร็จไปทั้งหมด ${totalSaved.toLocaleString()} รูป (พบ ${totalFaces.toLocaleString()} ใบหน้า)`);
+            break;
+          }
+
+          const chunk = selectedFilesForUpload.slice(i, i + BATCH_SIZE);
+          const formData = new FormData();
+          formData.append('album', album);
+          chunk.forEach(f => formData.append('files', f));
+
+          const res = await fetch('/api/admin/upload', {
+            method: 'POST',
+            headers: { 'X-Admin-PIN': adminToken },
+            body: formData
+          });
+
+          if (!res.ok) {
+            throw new Error(`เซิร์ฟเวอร์ตอบกลับสถานะ ${res.status}`);
+          }
+
+          const data = await res.json();
+          if (data.success) {
+            totalSaved += (data.saved_photos || 0);
+            totalFaces += (data.faces_detected || 0);
+          }
+
+          processedFiles += chunk.length;
+          const pct = Math.min(100, Math.round((processedFiles / totalFiles) * 100));
+
+          pPercent.innerText = `${pct}%`;
+          pBar.style.width = `${pct}%`;
+          pDetail.innerText = `ประมวลผลแล้ว ${processedFiles.toLocaleString()} จาก ${totalFiles.toLocaleString()} รูป (${pct}%)`;
+          pFaces.innerText = `พบสะสม ${totalFaces.toLocaleString()} ใบหน้า`;
+        }
+
+        if (!uploadCancelled) {
+          alert(`✨ สแกนครบเรียบร้อยแล้ว!\n- รูปภาพที่นำเข้า: ${totalSaved.toLocaleString()} รูป\n- ตรวจพบใบหน้าใหม่: ${totalFaces.toLocaleString()} ใบหน้า\nพร้อมให้ทุกคนค้นหาใบหน้าได้ทันที!`);
           selectedFilesForUpload = [];
           document.getElementById('upload-files-input').value = '';
+          const folderInput = document.getElementById('upload-folder-input');
+          if (folderInput) folderInput.value = '';
           document.getElementById('upload-files-summary').classList.add('hidden');
-          btn.innerHTML = '<i data-lucide="sparkles" class="w-4 h-4"></i><span>เริ่มอัปโหลดและสแกนใบหน้า</span>';
+          box.classList.add('hidden');
+          btn.classList.remove('hidden');
           btn.disabled = true;
           btn.classList.add('bg-slate-300', 'cursor-not-allowed');
-          prog.classList.add('hidden');
           initDashboard();
           switchTab('gallery');
-        } else {
-          alert('❌ เกิดข้อผิดพลาด: ' + (data.error || 'ไม่สามารถอัปโหลดได้'));
         }
       } catch (err) {
-        alert('เกิดข้อผิดพลาดในการเชื่อมต่อ');
+        alert('❌ เกิดข้อผิดพลาดขณะส่งข้อมูล: ' + err.message);
       } finally {
+        box.classList.add('hidden');
+        btn.classList.remove('hidden');
         btn.innerHTML = '<i data-lucide="sparkles" class="w-4 h-4"></i><span>เริ่มอัปโหลดและสแกนใบหน้า</span>';
         if (window.lucide) lucide.createIcons();
       }
