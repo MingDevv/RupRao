@@ -199,9 +199,8 @@
 - ตอนค้นหา FAISS ส่งคืน ID มาตามปกติ แต่โค้ดจะกรอง `WHERE is_hidden = 0` ในพริบตา
 - ผลลัพธ์: รูปที่ถูกสั่งซ่อนจะไม่ปรากฏในผลการค้นหา และไม่สามารถดาวน์โหลดได้ทันที
 
-[บทที่ 28] การ Deploy เว็บระดับ Production: Docker, Hugging Face และ Cloudflare Tunnel ⭐⭐
+[บทที่ 28] การ Deploy เว็บระดับ Production: Docker และ Cloudflare Tunnel ⭐⭐
 - **Dockerfile:** บรรจุ Environment (Python, OpenCV, InsightFace, ONNX) ไว้เป็นกล่องมาตรฐาน เอาไปรันที่ไหนก็ทำงานเหมือนกัน 100%
-- **Hugging Face Spaces:** รองรับ Docker ฟรี 16GB RAM เปิดเซิร์ฟเวอร์บนคลาวด์ได้ฟรีตลอดไป
 - **Cloudflare Tunnel (`run_tunnel.sh`):** ทางลัดยอดเยี่ยมสำหรับเครื่องตัวเอง รันคำสั่งเดียวได้ HTTPS ฟรี ไม่มีวันหมดอายุ ไม่ต้องฟอร์เวิร์ดพอร์ตเราเตอร์ให้ยุ่งยาก
 
 [บทที่ 29] กับดัก Path สัมพัทธ์ + พลังของการรัน test ซ้ำหลังแก้โค้ด ⭐⭐⭐ (4 พ.ย. ค่ำ)

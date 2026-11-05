@@ -1,15 +1,13 @@
-version: '3.8'
-
 services:
   ruprao:
     build: .
     container_name: ruprao-app
     ports:
-      - "8000:7860"
+      - "8000:8000"
     volumes:
+      # รูป + ฐานข้อมูล + FAISS index อยู่นอก container → รีสตาร์ท/อัปเดตแล้วข้อมูลไม่หาย
       - ./data:/app/data
-    environment:
-      - PORT=7860
-      - RUPRAO_PIN=${RUPRAO_PIN:-}
-      - RUPRAO_ADMIN_PIN=${RUPRAO_ADMIN_PIN:-}
+    # ค่าตั้งทั้งหมด (Firebase, อีเมลแอดมิน, PIN) อ่านจากไฟล์ .env ข้างๆ — ไม่ถูกฝังใน image
+    env_file:
+      - .env
     restart: unless-stopped

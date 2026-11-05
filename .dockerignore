@@ -1,4 +1,5 @@
 venv/
+venv312/
 .venv/
 __pycache__/
 *.pyc
@@ -7,6 +8,13 @@ __pycache__/
 .git/
 .gitignore
 .DS_Store
-data/raw/
-data/output/
 *.log
+
+# ไฟล์ลับ — ห้ามติดไปใน image
+.env
+.env.*
+!.env.example
+
+# ข้อมูลจริง (รูปนักเรียน, ฐานข้อมูล, session secret) เข้าผ่าน volume เท่านั้น
+data/
+backups/
