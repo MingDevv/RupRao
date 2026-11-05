@@ -150,6 +150,9 @@
         <button type="button" onclick="submitAdminLogin()" class="w-full py-3 bg-gradient-to-r from-blue-700 via-indigo-600 to-cyan-500 hover:opacity-95 text-white font-bold text-xs sm:text-sm rounded-xl shadow-md transition cursor-pointer active:scale-95">
           เข้าสู่ระบบแอดมิน
         </button>
+        <a href="/" class="block w-full py-2 text-slate-500 hover:text-slate-800 text-xs font-semibold rounded-xl transition cursor-pointer">
+          ← กลับสู่หน้าค้นหาหลัก
+        </a>
       </div>
     </div>
   </div>
@@ -568,7 +571,8 @@
     function logoutAdmin() {
       localStorage.removeItem('ruprao_admin_pin');
       adminToken = '';
-      showAuthModal();
+      // นำทางออกจากหน้าแอดมินกลับสู่หน้าค้นหาหลักทันที
+      window.location.href = '/';
     }
 
     let dropzoneInitialized = false;
