@@ -17,6 +17,7 @@ import os
 import re
 import sys
 import threading
+import time
 import zipfile
 from pathlib import Path
 from typing import List, Optional
@@ -509,13 +510,22 @@ async def root():
     return FileResponse(str(index_file))
 
 
-@app.get("/admin")
+# หน้าแอดมินอยู่นอกโฟลเดอร์ static (ไม่งั้นเปิด /static/admin.html ตรงๆ ได้)
+# ตั้ง RUPRAO_ADMIN_PATH ใน .env เพื่อซ่อน path จริง เช่น RUPRAO_ADMIN_PATH=teacher-x7k2 → เข้าที่ /teacher-x7k2
+# (เป็นแค่ชั้นซ่อนเพิ่มเติม ความปลอดภัยจริงอยู่ที่ Admin PIN + การล็อกเมื่อเดารหัสผิด)
+ADMIN_UI_FILE = BASE / "admin_ui" / "admin.html"
+ADMIN_PATH = "/" + (os.getenv("RUPRAO_ADMIN_PATH", "admin").strip().strip("/") or "admin")
+
+
+@app.get(ADMIN_PATH, include_in_schema=False)
 async def admin_page():
-    """เปิดหน้าเว็บ Admin Dashboard"""
-    admin_file = STATIC_DIR / "admin.html"
-    if not admin_file.exists():
-        return HTMLResponse("<h1>Admin Dashboard กำลังติดตั้ง...</h1>")
-    return FileResponse(str(admin_file))
+    """เปิดหน้าเว็บ Admin Dashboard (ไม่ให้ search engine เก็บหน้า)"""
+    if not ADMIN_UI_FILE.exists():
+        raise HTTPException(status_code=404)
+    return FileResponse(
+        str(ADMIN_UI_FILE),
+        headers={"X-Robots-Tag": "noindex, nofollow", "Cache-Control": "no-store"},
+    )
 
 
 # =============================================================================
@@ -531,6 +541,41 @@ ADMIN_NOT_CONFIGURED_MSG = "ระบบแอดมินถูกปิดไ�
 def _admin_configured() -> bool:
     """แอดมินใช้งานได้เฉพาะเมื่อตั้ง RUPRAO_ADMIN_PIN แล้วเท่านั้น (ไม่มีโหมดเปิดเสรี — ปลอดภัยไว้ก่อน)"""
     return bool(RUPRAO_ADMIN_PIN) and RUPRAO_ADMIN_PIN != "0"
+
+
+# ── กันเดารหัสแอดมิน: ผิดครบ 5 ครั้ง ล็อก IP นั้น 15 นาที (ทั้งหน้า login และการยิง API ตรงด้วย header) ──
+ADMIN_MAX_FAILS = 5
+ADMIN_LOCK_SECONDS = 15 * 60
+_admin_fails = {}            # ip -> (จำนวนครั้งที่ผิด, เวลาที่ผิดครั้งแรกในรอบนี้)
+_admin_fails_lock = threading.Lock()
+
+
+def _client_ip(request: Request) -> str:
+    return request.client.host if request.client else "unknown"
+
+
+def _admin_locked(ip: str) -> bool:
+    with _admin_fails_lock:
+        count, first = _admin_fails.get(ip, (0, 0.0))
+        if count and time.time() - first > ADMIN_LOCK_SECONDS:
+            _admin_fails.pop(ip, None)   # หมดเวลาล็อกแล้ว เริ่มนับใหม่
+            return False
+        return count >= ADMIN_MAX_FAILS
+
+
+def _admin_record_fail(ip: str):
+    with _admin_fails_lock:
+        count, first = _admin_fails.get(ip, (0, time.time()))
+        _admin_fails[ip] = (count + 1, first)
+    logger.warning(f"[ADMIN] รหัสแอดมินผิดจาก IP {ip} ({count + 1}/{ADMIN_MAX_FAILS})")
+
+
+def _admin_clear_fails(ip: str):
+    with _admin_fails_lock:
+        _admin_fails.pop(ip, None)
+
+
+ADMIN_LOCKED_MSG = "ใส่รหัสผิดหลายครั้งเกินไป ระบบล็อกไว้ 15 นาที"
 
 
 def _admin_ok(pin: str) -> bool:
@@ -549,8 +594,13 @@ def check_admin_auth(
     if not _admin_configured():
         raise HTTPException(status_code=503, detail=ADMIN_NOT_CONFIGURED_MSG)
 
+    ip = _client_ip(request)
+    if _admin_locked(ip):
+        raise HTTPException(status_code=429, detail=ADMIN_LOCKED_MSG)
+
     client_pin = (x_admin_pin or admin_pin or request.cookies.get("ruprao_admin_pin") or "").strip()
     if not _admin_ok(client_pin):
+        _admin_record_fail(ip)
         raise HTTPException(
             status_code=401,
             detail="กรุณาระบุรหัสผ่านผู้ดูแลระบบ (Admin PIN) ที่ถูกต้อง"
@@ -559,13 +609,20 @@ def check_admin_auth(
 
 
 @app.post("/api/admin/login")
-async def admin_login(payload: dict = Body(...), response: Response = None):
+async def admin_login(request: Request, payload: dict = Body(...)):
     """ยืนยันตัวตนเข้าสู่ระบบผู้ดูแลระบบ พร้อมตั้ง Cookie"""
     if not _admin_configured():
         return JSONResponse(status_code=503, content={"success": False, "error": ADMIN_NOT_CONFIGURED_MSG})
 
+    ip = _client_ip(request)
+    if _admin_locked(ip):
+        return JSONResponse(status_code=429, content={"success": False, "error": ADMIN_LOCKED_MSG})
+
     pin = str(payload.get("pin", "")).strip()
-    if _admin_ok(pin):
+    if not _admin_ok(pin):
+        _admin_record_fail(ip)
+    else:
+        _admin_clear_fails(ip)
         r = JSONResponse({"success": True, "message": "เข้าสู่ระบบแอดมินสำเร็จ", "token": pin})
         r.set_cookie("ruprao_admin_pin", pin, httponly=True, samesite="lax", max_age=60 * 60 * 24 * 7)
         return r
