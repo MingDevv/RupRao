@@ -30,28 +30,5 @@ RupRao (รูปเรา) เป็นแพลตฟอร์มค้นห�
 
 ---
 
-## 🚀 การติดตั้งและเปิดใช้งาน (Getting Started)
-
-### 1. ติดตั้งไลบรารีที่จำเป็น
-```bash
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-```
-
-### 2. รันระบบเซิร์ฟเวอร์
-```bash
-python server.py
-```
-* **หน้าค้นหาหลัก (สำหรับนักเรียน/ครู):** `http://localhost:8000`
-* **หน้าแดชบอร์ดแอดมิน:** `http://localhost:8000/admin.html`
-
-### 3. ตรวจสอบความสมบูรณ์ของระบบ
-```bash
-python test_production.py
-```
-
----
-
 ## 📄 ลิขสิทธิ์และการใช้งาน
 พัฒนาขึ้นสำหรับกิจกรรมและการศึกษา โรงเรียนเทศบาล 6 นครเชียงราย
