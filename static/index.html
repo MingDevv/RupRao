@@ -14,7 +14,7 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Lucide Icons (SVG icon system — แทน emoji icons ตามมาตรฐาน UI) -->
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
-  <script type="module" src="/static/auth.js"></script>
+  <script type="module" src="/static/auth.js?v=7"></script>
   <script>
     tailwind.config = {
       theme: {
@@ -1792,8 +1792,12 @@
       btnText.innerText = 'กำลังเข้าสู่ระบบ...';
       try {
         const data = await window.RupRaoAuth.signIn(authStatus);
-        document.getElementById('login-gate').classList.remove('active');
-        showSignedInBadge(data.user);
+        // โหมด redirect: หน้าจะถูกพาไปหน้าล็อกอิน Google — เมื่อวนกลับมา
+        // completeRedirectSignIn() จะสร้าง session ให้เองตอนโหลดหน้า
+        if (data && data.user) {
+          document.getElementById('login-gate').classList.remove('active');
+          showSignedInBadge(data.user);
+        }
       } catch (err) {
         showLoginGate(err.message);
       } finally {
@@ -1815,10 +1819,23 @@
         const data = await res.json();
         authStatus = data;
         if (data.auth_mode === 'firebase') {
-          if (data.user) {
-            showSignedInBadge(data.user);
+          // fail-closed: ถ้าไลบรารีล็อกอินโหลดไม่ครบ (แคชเก่า/พัง) ห้ามปล่อยแอปโชว์โดยไร้ประตู
+          if (!window.RupRaoAuth || typeof window.RupRaoAuth.completeRedirectSignIn !== 'function') {
+            showLoginGate('โหลดระบบล็อกอินไม่สำเร็จ — กรุณารีเฟรชหน้า (กด Cmd/Ctrl+R) แล้วลองใหม่');
+            return;
+          }
+          // ถ้าเพิ่งกลับมาจากหน้าล็อกอิน Google (redirect) — เปลี่ยน ID token เป็น session cookie ให้เอง
+          const rr = await window.RupRaoAuth.completeRedirectSignIn();
+          let user = data.user;
+          if (rr.ok) {
+            const res2 = await fetch('/api/auth/status');
+            const data2 = await res2.json();
+            user = data2.user;
+          }
+          if (user) {
+            showSignedInBadge(user);
           } else {
-            showLoginGate();
+            showLoginGate(rr.error);
           }
           return;
         }

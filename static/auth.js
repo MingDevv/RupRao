@@ -15,8 +15,10 @@ async function ensureFirebase(config) {
   authModule = await import(`${FIREBASE_SDK}/firebase-auth.js`);
   const app = initializeApp(config);
   firebaseAuth = authModule.getAuth(app);
-  // ไม่ต้องให้ Firebase จำการล็อกอินไว้ในเบราว์เซอร์ — session จริงอยู่ที่ cookie ของเซิร์ฟเวอร์
-  await authModule.setPersistence(firebaseAuth, authModule.inMemoryPersistence);
+  // ใช้ sessionStorage: redirect flow ต้องการให้ Firebase จำ "งานล็อกอินที่ค้าง" ข้ามหน้า
+  // (inMemoryPersistence จะหายตอนหน้ารีโหลดหลังกลับจาก Google — อ่านผล redirect ไม่ได้)
+  // ส่วน session จริงของแอปอยู่ที่ cookie ของเซิร์ฟเวอร์ตามเดิม
+  await authModule.setPersistence(firebaseAuth, authModule.browserSessionPersistence);
 }
 
 // แอปในตัว LINE / Facebook / Instagram — Google ไม่อนุญาตให้ล็อกอินในเบราว์เซอร์แบบนี้
@@ -52,9 +54,26 @@ async function signIn(status) {
     const provider = new authModule.GoogleAuthProvider();
     // hd = แนะนำให้ Google แสดงเฉพาะบัญชีโรงเรียน (เป็นแค่คำใบ้ เซิร์ฟเวอร์ตรวจซ้ำอีกที)
     provider.setCustomParameters({ hd: status.allowed_domain || '', prompt: 'select_account' });
-    const cred = await authModule.signInWithPopup(firebaseAuth, provider);
-    const idToken = await cred.user.getIdToken();
+    // ใช้ redirect แทน popup: ทำงานได้ทั้ง webview / มือถือ และไม่โดน popup blocker
+    // หน้าจะถูกพาไปหน้าล็อกอิน Google แล้ววนกลับมาที่ URL เดิม
+    // ผลลัพธ์ถูกเก็บด้วย completeRedirectSignIn() ที่ถูกเรียกตอนโหลดหน้า
+    await authModule.signInWithRedirect(firebaseAuth, provider);
+    return { started: true };
+  } catch (err) {
+    throw new Error(friendlyError(err));
+  }
+}
 
+// เรียกตอนโหลดหน้าทุกครั้ง: ถ้าเพิ่งกลับมาจากหน้าล็อกอิน Google
+// จะเปลี่ยน ID token เป็น session cookie ให้เอง แล้วคืน { ok: true, data }
+// ถ้าไม่มี redirect ค้าง คืน { ok: false } เงียบๆ
+async function completeRedirectSignIn() {
+  try {
+    if (!authModule || !firebaseAuth) return { ok: false };
+    const result = await authModule.getRedirectResult(firebaseAuth);
+    if (!result || !result.user) return { ok: false };
+
+    const idToken = await result.user.getIdToken();
     const res = await fetch('/api/auth/session', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -63,11 +82,14 @@ async function signIn(status) {
     const data = await res.json().catch(() => ({}));
     await authModule.signOut(firebaseAuth).catch(() => {});
     if (!res.ok || !data.success) {
-      throw new Error(data.error || data.detail || 'เข้าสู่ระบบไม่สำเร็จ');
+      return { ok: false, error: data.error || data.detail || 'เข้าสู่ระบบไม่สำเร็จ' };
     }
-    return data;
+    return { ok: true, data };
   } catch (err) {
-    throw new Error(friendlyError(err));
+    const code = (err && err.code) || '';
+    if (code === 'auth/no-auth-event') return { ok: false };
+    console.warn('redirect sign-in:', err);
+    return { ok: false, error: friendlyError(err) };
   }
 }
 
@@ -77,4 +99,4 @@ async function signOutSession() {
   } catch (e) {}
 }
 
-window.RupRaoAuth = { signIn, signOut: signOutSession, isInAppBrowser };
+window.RupRaoAuth = { signIn, completeRedirectSignIn, signOut: signOutSession, isInAppBrowser };
